@@ -1,7 +1,6 @@
 import * as UserService from "../services/user.service";
 import { Request, Response } from "express";
 import { loginSchema, registerUserSchema } from "../schema/user.schema";
-import fs from "fs";
 import { hashPassword, comparePassword } from "../utils/bcryptHandler";
 import { setTokens } from "../utils/jwtHandler";
 import { statusList } from "../constants/constants";
@@ -107,20 +106,15 @@ export const register = async (req: Request, res: Response) => {
       await UserService.deleteUserByEmail(userRequest.email);
     }
 
-    let newFilename: null | string = null;
+    // Handle Cloudinary uploaded image
     if (req.file) {
       console.log('File received:', req.file);
-      let filetype: string = req.file.mimetype.split("/")[1];
-      newFilename = req.file.filename + "." + filetype;
-
-      fs.renameSync(
-        `./uploads/${req.file.filename}`,
-        `./uploads/${newFilename}`
-      );
-      userRequest.image = `uploads/${newFilename}`;
-      console.log('Image path set to:', userRequest.image);
+      // Cloudinary automatically uploads and returns the URL in req.file.path
+      userRequest.image = (req.file as any).path;
+      console.log('Image URL from Cloudinary:', userRequest.image);
     } else {
       console.log('No file received in request');
+      userRequest.image = null;
     }
 
     if (userRequest.password) {
@@ -143,7 +137,12 @@ export const register = async (req: Request, res: Response) => {
       user,
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    console.error('Registration error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: error.message || 'Registration failed',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

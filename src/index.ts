@@ -45,11 +45,8 @@ app.use(bodyParser.urlencoded({ extended: false, limit: '50mb' }));
 app.use(cookieParser());
 
 app.use(express.static("public"));
-app.use("/uploads", express.static("uploads"));
-app.get("/uploads/:filename", (req: Request, res: Response) => {
-  const filename = req.params.filename;
-  res.sendFile(`${__dirname}/uploads/${filename}`);
-});
+// Note: File uploads are now handled by Cloudinary, not local storage
+// app.use("/uploads", express.static("uploads")); // Removed - using Cloudinary
 
 app.use("/specializations", specializationRoutes);
 app.use("/auth", authRoutes);

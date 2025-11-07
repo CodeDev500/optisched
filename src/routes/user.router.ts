@@ -1,9 +1,8 @@
 import express from "express";
 import * as UserController from "../controllers/user.controller";
+import { upload } from "../config/cloudinary";
 
 const router = express.Router();
-const multer = require("multer");
-const upload = multer({ dest: "./uploads" });
 
 // Get all users
 router.get("/", UserController.getAllUsers);
