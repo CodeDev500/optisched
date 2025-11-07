@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -83,7 +83,7 @@ model CourseOffering {
   curriculumCourse CurriculumCourse? @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
   roomSchedules    RoomSchedules[]
 
-  @@index([curriculumId], map: "course_offerings_curriculumId_fkey")
+  @@index([curriculumId], map: "course_offerings_curriculumId_idx")
   @@map("course_offerings")
 }
 
@@ -101,8 +101,8 @@ model RoomSchedules {
   instructor     User?           @relation(fields: [instructorId], references: [id])
   courseOffering CourseOffering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
 
-  @@index([instructorId], map: "room_schedules_instructorId_fkey")
-  @@index([offeringId], map: "room_schedules_offeringId_fkey")
+  @@index([instructorId], map: "room_schedules_instructorId_idx")
+  @@index([offeringId], map: "room_schedules_offeringId_idx")
   @@map("room_schedules")
 }
 
@@ -145,7 +145,7 @@ model Units_Loads {
   updatedAt    DateTime @updatedAt
   instructor   User?    @relation(fields: [instructorId], references: [id])
 
-  @@index([instructorId], map: "units_loads_instructorId_fkey")
+  @@index([instructorId], map: "units_loads_instructorId_idx")
   @@map("units_loads")
 }
 
@@ -159,7 +159,7 @@ model UserSubject {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, subjectId])
-  @@index([subjectId], map: "user_subjects_subjectId_fkey")
+  @@index([subjectId], map: "user_subjects_subjectId_idx")
   @@map("user_subjects")
 }
 
@@ -207,7 +207,7 @@ model FacultySubjectAssignment {
   updatedAt          DateTime         @updatedAt
   faculty            User             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
-  @@index([facultyId], map: "faculty_subject_assignments_facultyId_fkey")
+  @@index([facultyId], map: "faculty_subject_assignments_facultyId_idx")
   @@map("faculty_subject_assignments")
 }
 
@@ -337,7 +337,7 @@ model ScheduleConflict {
   updatedAt     DateTime           @updatedAt
   generation    ScheduleGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
-  @@index([generationId], map: "schedule_conflicts_generationId_fkey")
+  @@index([generationId], map: "schedule_conflicts_generationId_idx")
   @@map("schedule_conflicts")
 }
 
