@@ -7,26 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/* =======================
+   USER
+======================= */
 model User {
-  id                        Int                        @id @default(autoincrement())
+  id                        Int      @id @default(autoincrement())
   image                     String?
   firstname                 String
   lastname                  String
-  middleInitial             String                     @map("\"middleInitial\"")
-  email                     String                     @unique
+  middleInitial             String   @map("middleInitial")
+  email                     String   @unique
   designation               String
   department                String
   password                  String
   role                      UserRoles
   status                    Status
-  createdAt                 DateTime                   @default(now()) @map("\"createdAt\"")
-  updatedAt                 DateTime                   @updatedAt @map("\"updatedAt\"")
+  createdAt                 DateTime @default(now()) @map("createdAt")
+  updatedAt                 DateTime @updatedAt @map("updatedAt")
   specialization            Json?
-  // New fields for enhanced faculty recommendation
-  previousSubjects          Json?                      @map("\"previousSubjects\"") // Array of subject codes they've taught
-  yearsOfExperience         Int?                       @map("\"yearsOfExperience\"") // Years of teaching experience
-  preferredTimeSlots        Json?                      @map("\"preferredTimeSlots\"") // Array of preferred time slots ["morning", "afternoon"]
-  availableDays             Json?                      @map("\"availableDays\"") // Array of available days ["Monday", "Friday"]
+  previousSubjects          Json?    @map("previousSubjects")
+  yearsOfExperience         Int?     @map("yearsOfExperience")
+  preferredTimeSlots        Json?    @map("preferredTimeSlots")
+  availableDays             Json?    @map("availableDays")
   facultySubjectAssignments FacultySubjectAssignment[]
   roomSchedules             RoomSchedules[]
   units_loads               Units_Loads[]
@@ -35,51 +37,60 @@ model User {
   @@map("users")
 }
 
+/* =======================
+   SUBJECT
+======================= */
 model Subject {
-  id                 Int           @id @default(autoincrement())
-  subjectCode        String        @unique @map("\"subjectCode\"")
-  subjectDescription String        @map("\"subjectDescription\"")
-  lec                Int           @default(0)
-  lab                Int           @default(0)
-  units              Int           @default(0)
+  id                 Int      @id @default(autoincrement())
+  subjectCode        String   @unique @map("subjectCode")
+  subjectDescription String   @map("subjectDescription")
+  lec                Int      @default(0)
+  lab                Int      @default(0)
+  units              Int      @default(0)
   prerequisite       Json?
-  createdAt          DateTime      @default(now()) @map("\"createdAt\"")
-  updatedAt          DateTime      @updatedAt @map("\"updatedAt\"")
+  createdAt          DateTime @default(now()) @map("createdAt")
+  updatedAt          DateTime @updatedAt @map("updatedAt")
   tags               Json?
   userSubjects       UserSubject[]
 
   @@map("subjects")
 }
 
+/* =======================
+   CURRICULUM COURSES
+======================= */
 model CurriculumCourse {
-  id                 Int              @id @default(autoincrement())
-  curriculumYear     String?          @map("\"curriculumYear\"")
-  programCode        String?          @map("\"programCode\"")
-  programName        String?          @map("\"programName\"")
+  id                 Int      @id @default(autoincrement())
+  curriculumYear     String?  @map("curriculumYear")
+  programCode        String?  @map("programCode")
+  programName        String?  @map("programName")
   lec                Int?
   lab                Int?
   units              Int?
   hours              Int?
   period             String?
-  yearLevel          String?          @map("\"yearLevel\"")
-  createdAt          DateTime         @default(now()) @map("\"createdAt\"")
-  updatedAt          DateTime         @updatedAt @map("\"updatedAt\"")
-  subjectCode        String?          @map("\"subjectCode\"")
-  subjectDescription String?          @map("\"subjectDescription\"")
+  yearLevel          String?  @map("yearLevel")
+  createdAt          DateTime @default(now()) @map("createdAt")
+  updatedAt          DateTime @updatedAt @map("updatedAt")
+  subjectCode        String?  @map("subjectCode")
+  subjectDescription String?  @map("subjectDescription")
   courseOfferings    CourseOffering[]
 
   @@map("curriculum_courses")
 }
 
+/* =======================
+   COURSE OFFERING
+======================= */
 model CourseOffering {
   id               Int               @id @default(autoincrement())
-  courseType       String?           @map("\"courseType\"")
-  curriculumId     Int?              @map("\"curriculumId\"")
+  courseType       String?           @map("courseType")
+  curriculumId     Int?              @map("curriculumId")
   description      String?
-  sectionName      String?           @map("\"sectionName\"")
-  yearLevel        String            @map("\"yearLevel\"")
-  createdAt        DateTime          @default(now()) @map("\"createdAt\"")
-  updatedAt        DateTime          @updatedAt @map("\"updatedAt\"")
+  sectionName      String?           @map("sectionName")
+  yearLevel        String            @map("yearLevel")
+  createdAt        DateTime          @default(now()) @map("createdAt")
+  updatedAt        DateTime          @updatedAt @map("updatedAt")
   curriculumCourse CurriculumCourse? @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
   roomSchedules    RoomSchedules[]
 
@@ -87,17 +98,20 @@ model CourseOffering {
   @@map("course_offerings")
 }
 
+/* =======================
+   ROOM SCHEDULES
+======================= */
 model RoomSchedules {
   id             Int             @id @default(autoincrement())
   day            String
-  timeStarts     String          @map("\"timeStarts\"")
-  timeEnds       String          @map("\"timeEnds\"")
+  timeStarts     String          @map("timeStarts")
+  timeEnds       String          @map("timeEnds")
   room           String?
-  offeringId     Int?            @map("\"offeringId\"")
-  instructorId   Int?            @map("\"instructorId\"")
-  isLoaded       Int             @map("\"isLoaded\"")
-  createdAt      DateTime        @default(now()) @map("\"createdAt\"")
-  updatedAt      DateTime        @updatedAt @map("\"updatedAt\"")
+  offeringId     Int?            @map("offeringId")
+  instructorId   Int?            @map("instructorId")
+  isLoaded       Int             @map("isLoaded")
+  createdAt      DateTime        @default(now()) @map("createdAt")
+  updatedAt      DateTime        @updatedAt @map("updatedAt")
   instructor     User?           @relation(fields: [instructorId], references: [id])
   courseOffering CourseOffering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
 
@@ -106,55 +120,70 @@ model RoomSchedules {
   @@map("room_schedules")
 }
 
+/* =======================
+   ACADEMIC PROGRAM
+======================= */
 model AcademicProgram {
   id          Int      @id @default(autoincrement())
   department  String?
-  programCode String?  @map("\"programCode\"")
-  programName String?  @map("\"programName\"")
-  createdAt   DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt   DateTime @updatedAt @map("\"updatedAt\"")
+  programCode String?  @map("programCode")
+  programName String?  @map("programName")
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @updatedAt @map("updatedAt")
 
   @@map("academic_programs")
 }
 
+/* =======================
+   OTP
+======================= */
 model Otp {
   id        Int      @id @default(autoincrement())
   otp       String
   email     String
-  createdAt DateTime @default(now()) @map("\"createdAt\"")
-  expiresAt DateTime @map("\"expiresAt\"")
+  createdAt DateTime @default(now()) @map("createdAt")
+  expiresAt DateTime @map("expiresAt")
 
   @@map("otps")
 }
 
+/* =======================
+   ROOM
+======================= */
 model Room {
   id        Int      @id @default(autoincrement())
   name      String
   capacity  Int
-  createdAt DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
 
   @@map("rooms")
 }
 
+/* =======================
+   UNITS LOAD
+======================= */
 model Units_Loads {
   id           Int      @id @default(autoincrement())
-  instructorId Int?     @map("\"instructorId\"")
+  instructorId Int?     @map("instructorId")
   units        Int
-  createdAt    DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt    DateTime @updatedAt @map("\"updatedAt\"")
+  createdAt    DateTime @default(now()) @map("createdAt")
+  updatedAt    DateTime @updatedAt @map("updatedAt")
   instructor   User?    @relation(fields: [instructorId], references: [id])
 
   @@index([instructorId], map: "units_loads_instructorId_idx")
   @@map("units_loads")
 }
 
+/* =======================
+   USER-SUBJECT RELATION
+======================= */
 model UserSubject {
   id        Int      @id @default(autoincrement())
-  userId    Int      @map("\"userId\"")
-  subjectId Int      @map("\"subjectId\"")
-  createdAt DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
+  userId    Int      @map("userId")
+  subjectId Int      @map("subjectId")
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -166,192 +195,215 @@ model UserSubject {
 model notifications {
   id        Int      @id @default(autoincrement())
   content   String
-  createdAt DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
 }
 
 model TotalUnits {
   id         Int      @id @default(autoincrement())
-  totalUnits Int      @default(18) @map("\"totalUnits\"")
-  createdAt  DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt  DateTime @updatedAt @map("\"updatedAt\"")
+  totalUnits Int      @default(18) @map("totalUnits")
+  createdAt  DateTime @default(now()) @map("createdAt")
+  updatedAt  DateTime @updatedAt @map("updatedAt")
 
   @@map("total_units")
 }
 
+/* =======================
+   ACADEMIC YEAR
+======================= */
 model AcademicYear {
   id        Int      @id @default(autoincrement())
-  year      String   @unique // e.g., "2024-2025"
-  isActive  Boolean  @default(false) @map("\"isActive\"")
-  createdAt DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
+  year      String   @unique
+  isActive  Boolean  @default(false) @map("isActive")
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
 
   @@map("academic_years")
 }
 
+/* =======================
+   FACULTY SUBJECT ASSIGN
+======================= */
 model FacultySubjectAssignment {
   id                 Int              @id @default(autoincrement())
-  facultyId          Int              @map("\"facultyId\"")
-  subjectCode        String           @map("\"subjectCode\"")
-  subjectDescription String           @map("\"subjectDescription\"")
+  facultyId          Int              @map("facultyId")
+  subjectCode        String           @map("subjectCode")
+  subjectDescription String           @map("subjectDescription")
   units              Int
-  dayOfWeek          String           @map("\"dayOfWeek\"")
-  startTime          String           @map("\"startTime\"")
-  endTime            String           @map("\"endTime\"")
+  dayOfWeek          String           @map("dayOfWeek")
+  startTime          String           @map("startTime")
+  endTime            String           @map("endTime")
   room               String?
-  yearLevel          String?          @map("\"yearLevel\"")
+  yearLevel          String?          @map("yearLevel")
   semester           String?
   section            String?
   status             AssignmentStatus @default(DRAFT)
-  createdAt          DateTime         @default(now()) @map("\"createdAt\"")
-  updatedAt          DateTime         @updatedAt @map("\"updatedAt\"")
+  createdAt          DateTime         @default(now()) @map("createdAt")
+  updatedAt          DateTime         @updatedAt @map("updatedAt")
   faculty            User             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId], map: "faculty_subject_assignments_facultyId_idx")
   @@map("faculty_subject_assignments")
 }
 
+/* =======================
+   SPECIALIZATION
+======================= */
 model Specialization {
   id          Int      @id @default(autoincrement())
   name        String   @unique
   description String?
   department  String?
-  isActive    Boolean  @default(true) @map("\"isActive\"")
-  createdAt   DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt   DateTime @updatedAt @map("\"updatedAt\"")
+  isActive    Boolean  @default(true) @map("isActive")
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @updatedAt @map("updatedAt")
 
   @@map("specializations")
 }
 
+/* =======================
+   SCHEDULE CONSTRAINT
+======================= */
 model ScheduleConstraint {
   id              Int            @id @default(autoincrement())
   department      String
-  constraintType  ConstraintType @map("\"constraintType\"")
-  constraintValue String         @map("\"constraintValue\"")
+  constraintType  ConstraintType @map("constraintType")
+  constraintValue String         @map("constraintValue")
   priority        Priority       @default(MEDIUM)
-  isActive        Boolean        @default(true) @map("\"isActive\"")
-  createdAt       DateTime       @default(now()) @map("\"createdAt\"")
-  updatedAt       DateTime       @updatedAt @map("\"updatedAt\"")
+  isActive        Boolean        @default(true) @map("isActive")
+  createdAt       DateTime       @default(now()) @map("createdAt")
+  updatedAt       DateTime       @updatedAt @map("updatedAt")
 
   @@map("schedule_constraints")
 }
 
+/* =======================
+   GENERATION PREFERENCE
+======================= */
 model GenerationPreference {
   id                  Int              @id @default(autoincrement())
   department          String
-  optimizationGoal    OptimizationGoal @default(BALANCED) @map("\"optimizationGoal\"")
-  maxConsecutiveHours Int              @default(4) @map("\"maxConsecutiveHours\"")
-  preferredTimeSlots  String?          @map("\"preferredTimeSlots\"")
-  avoidTimeSlots      String?          @map("\"avoidTimeSlots\"")
-  roomPreferences     String?          @map("\"roomPreferences\"")
-  facultyPreferences  String?          @map("\"facultyPreferences\"")
-  createdAt           DateTime         @default(now()) @map("\"createdAt\"")
-  updatedAt           DateTime         @updatedAt @map("\"updatedAt\"")
+  optimizationGoal    OptimizationGoal @default(BALANCED) @map("optimizationGoal")
+  maxConsecutiveHours Int              @default(4) @map("maxConsecutiveHours")
+  preferredTimeSlots  String?          @map("preferredTimeSlots")
+  avoidTimeSlots      String?          @map("avoidTimeSlots")
+  roomPreferences     String?          @map("roomPreferences")
+  facultyPreferences  String?          @map("facultyPreferences")
+  createdAt           DateTime         @default(now()) @map("createdAt")
+  updatedAt           DateTime         @updatedAt @map("updatedAt")
 
   @@map("generation_preferences")
 }
 
+/* =======================
+   SCHEDULE GENERATION
+======================= */
 model ScheduleGeneration {
   id               Int                @id @default(autoincrement())
   department       String
-  academicYear     String             @map("\"academicYear\"")
+  academicYear     String             @map("academicYear")
   semester         String
-  yearLevel        String?            @map("\"yearLevel\"")
+  yearLevel        String?            @map("yearLevel")
   status           GenerationStatus   @default(PENDING)
-  constraintsUsed  String?            @map("\"constraintsUsed\"")
-  conflictsFound   String?            @map("\"conflictsFound\"")
-  scheduleData     String?            @map("\"scheduleData\"")
+  constraintsUsed  String?            @map("constraintsUsed")
+  conflictsFound   String?            @map("conflictsFound")
+  scheduleData     String?            @map("scheduleData")
   notes            String?
-  createdAt        DateTime           @default(now()) @map("\"createdAt\"")
-  updatedAt        DateTime           @updatedAt @map("\"updatedAt\"")
+  createdAt        DateTime           @default(now()) @map("createdAt")
+  updatedAt        DateTime           @updatedAt @map("updatedAt")
   conflicts        ScheduleConflict[]
   subjectSchedules SubjectSchedule[]
 
   @@map("schedule_generations")
 }
 
-// Store each generated schedule item as a normalized row
+/* =======================
+   SUBJECT SCHEDULE
+======================= */
 model SubjectSchedule {
-  id                 Int                 @id @default(autoincrement())
-  // original client-provided id for the item
-  sourceId           String?             @map("\"sourceId\"")
-  subjectId          String              @map("\"subjectId\"")
+  id                 Int      @id @default(autoincrement())
+  sourceId           String?  @map("sourceId")
+  subjectId          String   @map("subjectId")
   subject            String
-  subjectCode        String              @map("\"subjectCode\"")
-  subjectName        String              @map("\"subjectName\"")
-  subjectDescription String?             @map("\"subjectDescription\"")
+  subjectCode        String   @map("subjectCode")
+  subjectName        String   @map("subjectName")
+  subjectDescription String?  @map("subjectDescription")
   faculty            String
-  facultyId          String              @map("\"facultyId\"")
-  facultyName        String              @map("\"facultyName\"")
+  facultyId          String   @map("facultyId")
+  facultyName        String   @map("facultyName")
   room               String
-  roomId             String              @map("\"roomId\"")
-  roomName           String              @map("\"roomName\"")
+  roomId             String   @map("roomId")
+  roomName           String   @map("roomName")
   time               String
   day                String
-  // legacy column retained from initial migration for compatibility
   days               String?
-  startTime          String              @map("\"startTime\"")
-  endTime            String              @map("\"endTime\"")
-  semester           String              @db.VarChar(32)
-  academicYear       String              @map("\"academicYear\"") @db.VarChar(16)
-  program            String              @db.VarChar(32)
-  yearLevel          String              @map("\"yearLevel\"") @db.VarChar(32)
+  startTime          String   @map("startTime")
+  endTime            String   @map("endTime")
+  semester           String   @db.VarChar(32)
+  academicYear       String   @map("academicYear") @db.VarChar(16)
+  program            String   @db.VarChar(32)
+  yearLevel          String   @map("yearLevel") @db.VarChar(32)
   units              Int
-  lec                Int                 @default(0)
-  lab                Int                 @default(0)
+  lec                Int      @default(0)
+  lab                Int      @default(0)
   students           String?
-  totalStudents      Int?                @default(0) @map("\"totalStudents\"")
-  type               String?             @db.VarChar(32)
+  totalStudents      Int?     @default(0) @map("totalStudents")
+  type               String?  @db.VarChar(32)
   tags               Json?
-  recommendedFaculty Json?               @map("\"recommendedFaculty\"")
-  hasConflict        Boolean?            @map("\"hasConflict\"")
+  recommendedFaculty Json?    @map("recommendedFaculty")
+  hasConflict        Boolean? @map("hasConflict")
   status             String?
-  conflictType       String?             @map("\"conflictType\"")
+  conflictType       String?  @map("conflictType")
   department         String?
-  // legacy foreign key columns retained for compatibility with existing DB
-  curriculumId       Int?                @map("\"curriculumId\"")
-  instructorId       Int?                @map("\"instructorId\"")
-  roomLegacyId       Int?                @map("\"roomLegacyId\"")
-  isActive           Boolean?            @default(true) @map("\"isActive\"")
-  // optional relation to a generation record
-  generationId       Int?                @map("\"generationId\"")
+  curriculumId       Int?     @map("curriculumId")
+  instructorId       Int?     @map("instructorId")
+  roomLegacyId       Int?     @map("roomLegacyId")
+  isActive           Boolean? @default(true) @map("isActive")
+  generationId       Int?     @map("generationId")
   generation         ScheduleGeneration? @relation(fields: [generationId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
+  createdAt          DateTime @default(now()) @map("createdAt")
+  updatedAt          DateTime @updatedAt @map("updatedAt")
 
   @@index([department, academicYear, semester, yearLevel, program])
   @@map("subject_schedules")
 }
 
+/* =======================
+   SCHEDULE CONFLICT
+======================= */
 model ScheduleConflict {
-  id            Int                @id @default(autoincrement())
-  generationId  Int                @map("\"generationId\"")
-  conflictType  ConflictType       @map("\"conflictType\"")
+  id            Int           @id @default(autoincrement())
+  generationId  Int           @map("generationId")
+  conflictType  ConflictType  @map("conflictType")
   description   String
-  affectedItems String             @map("\"affectedItems\"")
-  severity      Severity           @default(MEDIUM)
-  isResolved    Boolean            @default(false) @map("\"isResolved\"")
+  affectedItems String        @map("affectedItems")
+  severity      Severity      @default(MEDIUM)
+  isResolved    Boolean       @default(false) @map("isResolved")
   resolution    String?
-  createdAt     DateTime           @default(now()) @map("\"createdAt\"")
-  updatedAt     DateTime           @updatedAt @map("\"updatedAt\"")
+  createdAt     DateTime      @default(now()) @map("createdAt")
+  updatedAt     DateTime      @updatedAt @map("updatedAt")
   generation    ScheduleGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
   @@index([generationId], map: "schedule_conflicts_generationId_idx")
   @@map("schedule_conflicts")
 }
 
+/* =======================
+   PROGRAM PRIORITY
+======================= */
 model ProgramPriority {
   id          Int      @id @default(autoincrement())
-  programCode String   @unique @map("\"programCode\"")
-  programName String   @map("\"programName\"")
+  programCode String   @unique @map("programCode")
+  programName String   @map("programName")
   priority    Int
   department  String?
-  createdAt   DateTime @default(now()) @map("\"createdAt\"")
-  updatedAt   DateTime @updatedAt @map("\"updatedAt\"")
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @updatedAt @map("updatedAt")
 
   @@map("program_priorities")
 }
+
+/* ========== ENUMS ========== */
 
 enum UserRoles {
   CAMPUS_ADMIN
