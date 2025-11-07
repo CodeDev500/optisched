@@ -1,0 +1,420 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        Int                        @id @default(autoincrement())
+  image                     String?
+  firstname                 String
+  lastname                  String
+  middleInitial             String
+  email                     String                     @unique
+  designation               String
+  department                String
+  password                  String
+  role                      UserRoles
+  status                    Status
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  specialization            Json?
+  // New fields for enhanced faculty recommendation
+  previousSubjects          Json? // Array of subject codes they've taught
+  yearsOfExperience         Int? // Years of teaching experience
+  preferredTimeSlots        Json? // Array of preferred time slots ["morning", "afternoon"]
+  availableDays             Json? // Array of available days ["Monday", "Friday"]
+  facultySubjectAssignments FacultySubjectAssignment[]
+  roomSchedules             RoomSchedules[]
+  units_loads               Units_Loads[]
+  userSubjects              UserSubject[]
+
+  @@map("users")
+}
+
+model Subject {
+  id                 Int           @id @default(autoincrement())
+  subjectCode        String        @unique
+  subjectDescription String
+  lec                Int           @default(0)
+  lab                Int           @default(0)
+  units              Int           @default(0)
+  prerequisite       Json?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  tags               Json?
+  userSubjects       UserSubject[]
+
+  @@map("subjects")
+}
+
+model CurriculumCourse {
+  id                 Int              @id @default(autoincrement())
+  curriculumYear     String?
+  programCode        String?
+  programName        String?
+  lec                Int?
+  lab                Int?
+  units              Int?
+  hours              Int?
+  period             String?
+  yearLevel          String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  subjectCode        String?
+  subjectDescription String?
+  courseOfferings    CourseOffering[]
+
+  @@map("curriculum_courses")
+}
+
+model CourseOffering {
+  id               Int               @id @default(autoincrement())
+  courseType       String?
+  curriculumId     Int?
+  description      String?
+  sectionName      String?
+  yearLevel        String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  curriculumCourse CurriculumCourse? @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  roomSchedules    RoomSchedules[]
+
+  @@index([curriculumId], map: "course_offerings_curriculumId_fkey")
+  @@map("course_offerings")
+}
+
+model RoomSchedules {
+  id             Int             @id @default(autoincrement())
+  day            String
+  timeStarts     String
+  timeEnds       String
+  room           String?
+  offeringId     Int?
+  instructorId   Int?
+  isLoaded       Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  instructor     User?           @relation(fields: [instructorId], references: [id])
+  courseOffering CourseOffering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  @@index([instructorId], map: "room_schedules_instructorId_fkey")
+  @@index([offeringId], map: "room_schedules_offeringId_fkey")
+  @@map("room_schedules")
+}
+
+model AcademicProgram {
+  id          Int      @id @default(autoincrement())
+  department  String?
+  programCode String?
+  programName String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("academic_programs")
+}
+
+model Otp {
+  id        Int      @id @default(autoincrement())
+  otp       String
+  email     String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@map("otps")
+}
+
+model Room {
+  id        Int      @id @default(autoincrement())
+  name      String
+  capacity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("rooms")
+}
+
+model Units_Loads {
+  id           Int      @id @default(autoincrement())
+  instructorId Int?
+  units        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  instructor   User?    @relation(fields: [instructorId], references: [id])
+
+  @@index([instructorId], map: "units_loads_instructorId_fkey")
+  @@map("units_loads")
+}
+
+model UserSubject {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  subjectId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subjectId])
+  @@index([subjectId], map: "user_subjects_subjectId_fkey")
+  @@map("user_subjects")
+}
+
+model notifications {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TotalUnits {
+  id         Int      @id @default(autoincrement())
+  totalUnits Int      @default(18)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("total_units")
+}
+
+model AcademicYear {
+  id        Int      @id @default(autoincrement())
+  year      String   @unique // e.g., "2024-2025"
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("academic_years")
+}
+
+model FacultySubjectAssignment {
+  id                 Int              @id @default(autoincrement())
+  facultyId          Int
+  subjectCode        String
+  subjectDescription String
+  units              Int
+  dayOfWeek          String
+  startTime          String
+  endTime            String
+  room               String?
+  yearLevel          String?
+  semester           String?
+  section            String?
+  status             AssignmentStatus @default(DRAFT)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  faculty            User             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@index([facultyId], map: "faculty_subject_assignments_facultyId_fkey")
+  @@map("faculty_subject_assignments")
+}
+
+model Specialization {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  department  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("specializations")
+}
+
+model ScheduleConstraint {
+  id              Int            @id @default(autoincrement())
+  department      String
+  constraintType  ConstraintType
+  constraintValue String
+  priority        Priority       @default(MEDIUM)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("schedule_constraints")
+}
+
+model GenerationPreference {
+  id                  Int              @id @default(autoincrement())
+  department          String
+  optimizationGoal    OptimizationGoal @default(BALANCED)
+  maxConsecutiveHours Int              @default(4)
+  preferredTimeSlots  String?
+  avoidTimeSlots      String?
+  roomPreferences     String?
+  facultyPreferences  String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@map("generation_preferences")
+}
+
+model ScheduleGeneration {
+  id               Int                @id @default(autoincrement())
+  department       String
+  academicYear     String
+  semester         String
+  yearLevel        String?
+  status           GenerationStatus   @default(PENDING)
+  constraintsUsed  String?
+  conflictsFound   String?
+  scheduleData     String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  conflicts        ScheduleConflict[]
+  subjectSchedules SubjectSchedule[]
+
+  @@map("schedule_generations")
+}
+
+// Store each generated schedule item as a normalized row
+model SubjectSchedule {
+  id                 Int                 @id @default(autoincrement())
+  // original client-provided id for the item
+  sourceId           String?
+  subjectId          String
+  subject            String
+  subjectCode        String
+  subjectName        String
+  subjectDescription String?
+  faculty            String
+  facultyId          String
+  facultyName        String
+  room               String
+  roomId             String
+  roomName           String
+  time               String
+  day                String
+  // legacy column retained from initial migration for compatibility
+  days               String?
+  startTime          String
+  endTime            String
+  semester           String              @db.VarChar(32)
+  academicYear       String              @db.VarChar(16)
+  program            String              @db.VarChar(32)
+  yearLevel          String              @db.VarChar(32)
+  units              Int
+  lec                Int                 @default(0)
+  lab                Int                 @default(0)
+  students           String?
+  totalStudents      Int?                @default(0)
+  type               String?             @db.VarChar(32)
+  tags               Json?
+  recommendedFaculty Json?
+  hasConflict        Boolean?
+  status             String?
+  conflictType       String?
+  department         String?
+  // legacy foreign key columns retained for compatibility with existing DB
+  curriculumId       Int?
+  instructorId       Int?
+  roomLegacyId       Int?
+  isActive           Boolean?            @default(true)
+  // optional relation to a generation record
+  generationId       Int?
+  generation         ScheduleGeneration? @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([department, academicYear, semester, yearLevel, program])
+  @@map("subject_schedules")
+}
+
+model ScheduleConflict {
+  id            Int                @id @default(autoincrement())
+  generationId  Int
+  conflictType  ConflictType
+  description   String
+  affectedItems String
+  severity      Severity           @default(MEDIUM)
+  isResolved    Boolean            @default(false)
+  resolution    String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  generation    ScheduleGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  @@index([generationId], map: "schedule_conflicts_generationId_fkey")
+  @@map("schedule_conflicts")
+}
+
+model ProgramPriority {
+  id          Int      @id @default(autoincrement())
+  programCode String   @unique
+  programName String
+  priority    Int
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("program_priorities")
+}
+
+enum UserRoles {
+  CAMPUS_ADMIN
+  REGISTRAR
+  DEPARTMENT_HEAD
+  FACULTY
+}
+
+enum Status {
+  PENDING
+  VERIFIED
+  APPROVED
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ConstraintType {
+  TIME_PREFERENCE
+  ROOM_REQUIREMENT
+  FACULTY_AVAILABILITY
+  SUBJECT_SEQUENCE
+  BREAK_DURATION
+  MAXIMUM_DAILY_HOURS
+  DEPARTMENT_POLICY
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum OptimizationGoal {
+  MINIMIZE_CONFLICTS
+  MAXIMIZE_EFFICIENCY
+  BALANCED
+  FACULTY_PREFERENCE
+  ROOM_UTILIZATION
+}
+
+enum GenerationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ConflictType {
+  TIME_OVERLAP
+  ROOM_DOUBLE_BOOKING
+  FACULTY_OVERLOAD
+  CONSTRAINT_VIOLATION
+  RESOURCE_UNAVAILABLE
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
