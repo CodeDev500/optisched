@@ -12,21 +12,21 @@ model User {
   image                     String?
   firstname                 String
   lastname                  String
-  middleInitial             String
+  middleInitial             String                     @map("\"middleInitial\"")
   email                     String                     @unique
   designation               String
   department                String
   password                  String
   role                      UserRoles
   status                    Status
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+  createdAt                 DateTime                   @default(now()) @map("\"createdAt\"")
+  updatedAt                 DateTime                   @updatedAt @map("\"updatedAt\"")
   specialization            Json?
   // New fields for enhanced faculty recommendation
-  previousSubjects          Json? // Array of subject codes they've taught
-  yearsOfExperience         Int? // Years of teaching experience
-  preferredTimeSlots        Json? // Array of preferred time slots ["morning", "afternoon"]
-  availableDays             Json? // Array of available days ["Monday", "Friday"]
+  previousSubjects          Json?                      @map("\"previousSubjects\"") // Array of subject codes they've taught
+  yearsOfExperience         Int?                       @map("\"yearsOfExperience\"") // Years of teaching experience
+  preferredTimeSlots        Json?                      @map("\"preferredTimeSlots\"") // Array of preferred time slots ["morning", "afternoon"]
+  availableDays             Json?                      @map("\"availableDays\"") // Array of available days ["Monday", "Friday"]
   facultySubjectAssignments FacultySubjectAssignment[]
   roomSchedules             RoomSchedules[]
   units_loads               Units_Loads[]
@@ -37,14 +37,14 @@ model User {
 
 model Subject {
   id                 Int           @id @default(autoincrement())
-  subjectCode        String        @unique
-  subjectDescription String
+  subjectCode        String        @unique @map("\"subjectCode\"")
+  subjectDescription String        @map("\"subjectDescription\"")
   lec                Int           @default(0)
   lab                Int           @default(0)
   units              Int           @default(0)
   prerequisite       Json?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime      @default(now()) @map("\"createdAt\"")
+  updatedAt          DateTime      @updatedAt @map("\"updatedAt\"")
   tags               Json?
   userSubjects       UserSubject[]
 
@@ -53,19 +53,19 @@ model Subject {
 
 model CurriculumCourse {
   id                 Int              @id @default(autoincrement())
-  curriculumYear     String?
-  programCode        String?
-  programName        String?
+  curriculumYear     String?          @map("\"curriculumYear\"")
+  programCode        String?          @map("\"programCode\"")
+  programName        String?          @map("\"programName\"")
   lec                Int?
   lab                Int?
   units              Int?
   hours              Int?
   period             String?
-  yearLevel          String?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  subjectCode        String?
-  subjectDescription String?
+  yearLevel          String?          @map("\"yearLevel\"")
+  createdAt          DateTime         @default(now()) @map("\"createdAt\"")
+  updatedAt          DateTime         @updatedAt @map("\"updatedAt\"")
+  subjectCode        String?          @map("\"subjectCode\"")
+  subjectDescription String?          @map("\"subjectDescription\"")
   courseOfferings    CourseOffering[]
 
   @@map("curriculum_courses")
@@ -73,13 +73,13 @@ model CurriculumCourse {
 
 model CourseOffering {
   id               Int               @id @default(autoincrement())
-  courseType       String?
-  curriculumId     Int?
+  courseType       String?           @map("\"courseType\"")
+  curriculumId     Int?              @map("\"curriculumId\"")
   description      String?
-  sectionName      String?
-  yearLevel        String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  sectionName      String?           @map("\"sectionName\"")
+  yearLevel        String            @map("\"yearLevel\"")
+  createdAt        DateTime          @default(now()) @map("\"createdAt\"")
+  updatedAt        DateTime          @updatedAt @map("\"updatedAt\"")
   curriculumCourse CurriculumCourse? @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
   roomSchedules    RoomSchedules[]
 
@@ -90,14 +90,14 @@ model CourseOffering {
 model RoomSchedules {
   id             Int             @id @default(autoincrement())
   day            String
-  timeStarts     String
-  timeEnds       String
+  timeStarts     String          @map("\"timeStarts\"")
+  timeEnds       String          @map("\"timeEnds\"")
   room           String?
-  offeringId     Int?
-  instructorId   Int?
-  isLoaded       Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  offeringId     Int?            @map("\"offeringId\"")
+  instructorId   Int?            @map("\"instructorId\"")
+  isLoaded       Int             @map("\"isLoaded\"")
+  createdAt      DateTime        @default(now()) @map("\"createdAt\"")
+  updatedAt      DateTime        @updatedAt @map("\"updatedAt\"")
   instructor     User?           @relation(fields: [instructorId], references: [id])
   courseOffering CourseOffering? @relation(fields: [offeringId], references: [id], onDelete: Cascade)
 
@@ -109,10 +109,10 @@ model RoomSchedules {
 model AcademicProgram {
   id          Int      @id @default(autoincrement())
   department  String?
-  programCode String?
-  programName String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  programCode String?  @map("\"programCode\"")
+  programName String?  @map("\"programName\"")
+  createdAt   DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt   DateTime @updatedAt @map("\"updatedAt\"")
 
   @@map("academic_programs")
 }
@@ -121,8 +121,8 @@ model Otp {
   id        Int      @id @default(autoincrement())
   otp       String
   email     String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+  createdAt DateTime @default(now()) @map("\"createdAt\"")
+  expiresAt DateTime @map("\"expiresAt\"")
 
   @@map("otps")
 }
@@ -131,18 +131,18 @@ model Room {
   id        Int      @id @default(autoincrement())
   name      String
   capacity  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
 
   @@map("rooms")
 }
 
 model Units_Loads {
   id           Int      @id @default(autoincrement())
-  instructorId Int?
+  instructorId Int?     @map("\"instructorId\"")
   units        Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt    DateTime @updatedAt @map("\"updatedAt\"")
   instructor   User?    @relation(fields: [instructorId], references: [id])
 
   @@index([instructorId], map: "units_loads_instructorId_idx")
@@ -151,10 +151,10 @@ model Units_Loads {
 
 model UserSubject {
   id        Int      @id @default(autoincrement())
-  userId    Int
-  subjectId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId    Int      @map("\"userId\"")
+  subjectId Int      @map("\"subjectId\"")
+  createdAt DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -166,15 +166,15 @@ model UserSubject {
 model notifications {
   id        Int      @id @default(autoincrement())
   content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
 }
 
 model TotalUnits {
   id         Int      @id @default(autoincrement())
-  totalUnits Int      @default(18)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  totalUnits Int      @default(18) @map("\"totalUnits\"")
+  createdAt  DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt  DateTime @updatedAt @map("\"updatedAt\"")
 
   @@map("total_units")
 }
@@ -182,29 +182,29 @@ model TotalUnits {
 model AcademicYear {
   id        Int      @id @default(autoincrement())
   year      String   @unique // e.g., "2024-2025"
-  isActive  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean  @default(false) @map("\"isActive\"")
+  createdAt DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
 
   @@map("academic_years")
 }
 
 model FacultySubjectAssignment {
   id                 Int              @id @default(autoincrement())
-  facultyId          Int
-  subjectCode        String
-  subjectDescription String
+  facultyId          Int              @map("\"facultyId\"")
+  subjectCode        String           @map("\"subjectCode\"")
+  subjectDescription String           @map("\"subjectDescription\"")
   units              Int
-  dayOfWeek          String
-  startTime          String
-  endTime            String
+  dayOfWeek          String           @map("\"dayOfWeek\"")
+  startTime          String           @map("\"startTime\"")
+  endTime            String           @map("\"endTime\"")
   room               String?
-  yearLevel          String?
+  yearLevel          String?          @map("\"yearLevel\"")
   semester           String?
   section            String?
   status             AssignmentStatus @default(DRAFT)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  createdAt          DateTime         @default(now()) @map("\"createdAt\"")
+  updatedAt          DateTime         @updatedAt @map("\"updatedAt\"")
   faculty            User             @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
   @@index([facultyId], map: "faculty_subject_assignments_facultyId_idx")
@@ -216,9 +216,9 @@ model Specialization {
   name        String   @unique
   description String?
   department  String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean  @default(true) @map("\"isActive\"")
+  createdAt   DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt   DateTime @updatedAt @map("\"updatedAt\"")
 
   @@map("specializations")
 }
@@ -226,12 +226,12 @@ model Specialization {
 model ScheduleConstraint {
   id              Int            @id @default(autoincrement())
   department      String
-  constraintType  ConstraintType
-  constraintValue String
+  constraintType  ConstraintType @map("\"constraintType\"")
+  constraintValue String         @map("\"constraintValue\"")
   priority        Priority       @default(MEDIUM)
-  isActive        Boolean        @default(true)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  isActive        Boolean        @default(true) @map("\"isActive\"")
+  createdAt       DateTime       @default(now()) @map("\"createdAt\"")
+  updatedAt       DateTime       @updatedAt @map("\"updatedAt\"")
 
   @@map("schedule_constraints")
 }
@@ -239,14 +239,14 @@ model ScheduleConstraint {
 model GenerationPreference {
   id                  Int              @id @default(autoincrement())
   department          String
-  optimizationGoal    OptimizationGoal @default(BALANCED)
-  maxConsecutiveHours Int              @default(4)
-  preferredTimeSlots  String?
-  avoidTimeSlots      String?
-  roomPreferences     String?
-  facultyPreferences  String?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  optimizationGoal    OptimizationGoal @default(BALANCED) @map("\"optimizationGoal\"")
+  maxConsecutiveHours Int              @default(4) @map("\"maxConsecutiveHours\"")
+  preferredTimeSlots  String?          @map("\"preferredTimeSlots\"")
+  avoidTimeSlots      String?          @map("\"avoidTimeSlots\"")
+  roomPreferences     String?          @map("\"roomPreferences\"")
+  facultyPreferences  String?          @map("\"facultyPreferences\"")
+  createdAt           DateTime         @default(now()) @map("\"createdAt\"")
+  updatedAt           DateTime         @updatedAt @map("\"updatedAt\"")
 
   @@map("generation_preferences")
 }
@@ -254,16 +254,16 @@ model GenerationPreference {
 model ScheduleGeneration {
   id               Int                @id @default(autoincrement())
   department       String
-  academicYear     String
+  academicYear     String             @map("\"academicYear\"")
   semester         String
-  yearLevel        String?
+  yearLevel        String?            @map("\"yearLevel\"")
   status           GenerationStatus   @default(PENDING)
-  constraintsUsed  String?
-  conflictsFound   String?
-  scheduleData     String?
+  constraintsUsed  String?            @map("\"constraintsUsed\"")
+  conflictsFound   String?            @map("\"conflictsFound\"")
+  scheduleData     String?            @map("\"scheduleData\"")
   notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt        DateTime           @default(now()) @map("\"createdAt\"")
+  updatedAt        DateTime           @updatedAt @map("\"updatedAt\"")
   conflicts        ScheduleConflict[]
   subjectSchedules SubjectSchedule[]
 
@@ -274,51 +274,51 @@ model ScheduleGeneration {
 model SubjectSchedule {
   id                 Int                 @id @default(autoincrement())
   // original client-provided id for the item
-  sourceId           String?
-  subjectId          String
+  sourceId           String?             @map("\"sourceId\"")
+  subjectId          String              @map("\"subjectId\"")
   subject            String
-  subjectCode        String
-  subjectName        String
-  subjectDescription String?
+  subjectCode        String              @map("\"subjectCode\"")
+  subjectName        String              @map("\"subjectName\"")
+  subjectDescription String?             @map("\"subjectDescription\"")
   faculty            String
-  facultyId          String
-  facultyName        String
+  facultyId          String              @map("\"facultyId\"")
+  facultyName        String              @map("\"facultyName\"")
   room               String
-  roomId             String
-  roomName           String
+  roomId             String              @map("\"roomId\"")
+  roomName           String              @map("\"roomName\"")
   time               String
   day                String
   // legacy column retained from initial migration for compatibility
   days               String?
-  startTime          String
-  endTime            String
+  startTime          String              @map("\"startTime\"")
+  endTime            String              @map("\"endTime\"")
   semester           String              @db.VarChar(32)
-  academicYear       String              @db.VarChar(16)
+  academicYear       String              @map("\"academicYear\"") @db.VarChar(16)
   program            String              @db.VarChar(32)
-  yearLevel          String              @db.VarChar(32)
+  yearLevel          String              @map("\"yearLevel\"") @db.VarChar(32)
   units              Int
   lec                Int                 @default(0)
   lab                Int                 @default(0)
   students           String?
-  totalStudents      Int?                @default(0)
+  totalStudents      Int?                @default(0) @map("\"totalStudents\"")
   type               String?             @db.VarChar(32)
   tags               Json?
-  recommendedFaculty Json?
-  hasConflict        Boolean?
+  recommendedFaculty Json?               @map("\"recommendedFaculty\"")
+  hasConflict        Boolean?            @map("\"hasConflict\"")
   status             String?
-  conflictType       String?
+  conflictType       String?             @map("\"conflictType\"")
   department         String?
   // legacy foreign key columns retained for compatibility with existing DB
-  curriculumId       Int?
-  instructorId       Int?
-  roomLegacyId       Int?
-  isActive           Boolean?            @default(true)
+  curriculumId       Int?                @map("\"curriculumId\"")
+  instructorId       Int?                @map("\"instructorId\"")
+  roomLegacyId       Int?                @map("\"roomLegacyId\"")
+  isActive           Boolean?            @default(true) @map("\"isActive\"")
   // optional relation to a generation record
-  generationId       Int?
+  generationId       Int?                @map("\"generationId\"")
   generation         ScheduleGeneration? @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt DateTime @updatedAt @map("\"updatedAt\"")
 
   @@index([department, academicYear, semester, yearLevel, program])
   @@map("subject_schedules")
@@ -326,15 +326,15 @@ model SubjectSchedule {
 
 model ScheduleConflict {
   id            Int                @id @default(autoincrement())
-  generationId  Int
-  conflictType  ConflictType
+  generationId  Int                @map("\"generationId\"")
+  conflictType  ConflictType       @map("\"conflictType\"")
   description   String
-  affectedItems String
+  affectedItems String             @map("\"affectedItems\"")
   severity      Severity           @default(MEDIUM)
-  isResolved    Boolean            @default(false)
+  isResolved    Boolean            @default(false) @map("\"isResolved\"")
   resolution    String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  createdAt     DateTime           @default(now()) @map("\"createdAt\"")
+  updatedAt     DateTime           @updatedAt @map("\"updatedAt\"")
   generation    ScheduleGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
   @@index([generationId], map: "schedule_conflicts_generationId_idx")
@@ -343,12 +343,12 @@ model ScheduleConflict {
 
 model ProgramPriority {
   id          Int      @id @default(autoincrement())
-  programCode String   @unique
-  programName String
+  programCode String   @unique @map("\"programCode\"")
+  programName String   @map("\"programName\"")
   priority    Int
   department  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("\"createdAt\"")
+  updatedAt   DateTime @updatedAt @map("\"updatedAt\"")
 
   @@map("program_priorities")
 }

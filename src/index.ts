@@ -31,7 +31,7 @@ const PORT: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const app = express();
 
 const corsOptions = {
-  origin: ["http://localhost:3000", "http://localhost:5173"],
+  origin: ["http://localhost:3000", "http://localhost:5173", "https://wmsu-esu-optisched.site"],
   method: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
