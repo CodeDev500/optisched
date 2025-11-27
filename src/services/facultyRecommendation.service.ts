@@ -6,7 +6,7 @@ export interface FacultyRecommendation {
   lastname: string;
   middleInitial?: string;
   email: string;
-  department: string;
+  department: string | null;
   specialization?: string;
   matchScore: number;
   matchingTags: string[];
@@ -69,7 +69,7 @@ export const getFacultyRecommendationsForSubject = async (
         lastname: facultyMember.lastname,
         middleInitial: facultyMember.middleInitial,
         email: facultyMember.email,
-        department: facultyMember.department,
+        department: facultyMember.department || '',
         specialization: typeof facultyMember.specialization === 'string' 
           ? facultyMember.specialization 
           : undefined,

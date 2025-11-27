@@ -61,3 +61,13 @@ export const deleteAcademicProgram = async (req: Request, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const updateProgramPriorities = async (req: Request, res: Response) => {
+  try {
+    const priorities = req.body; // Array of { id, priority }
+    await AcademicProgramService.updateProgramPriorities(priorities);
+    res.status(200).json({ success: true, message: 'Priorities updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

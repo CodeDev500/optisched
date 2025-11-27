@@ -18,7 +18,7 @@ model User {
   middleInitial             String   @map("middleInitial")
   email                     String   @unique
   designation               String
-  department                String
+  department                String?
   password                  String
   role                      UserRoles
   status                    Status
@@ -44,9 +44,9 @@ model Subject {
   id                 Int      @id @default(autoincrement())
   subjectCode        String   @unique @map("subjectCode")
   subjectDescription String   @map("subjectDescription")
-  lec                Int      @default(0)
-  lab                Int      @default(0)
-  units              Int      @default(0)
+  lec                Float    @default(0)
+  lab                Float    @default(0)
+  units              Float    @default(0)
   prerequisite       Json?
   createdAt          DateTime @default(now()) @map("createdAt")
   updatedAt          DateTime @updatedAt @map("updatedAt")
@@ -128,6 +128,7 @@ model AcademicProgram {
   department  String?
   programCode String?  @map("programCode")
   programName String?  @map("programName")
+  priority    Int?     @default(20)
   createdAt   DateTime @default(now()) @map("createdAt")
   updatedAt   DateTime @updatedAt @map("updatedAt")
 

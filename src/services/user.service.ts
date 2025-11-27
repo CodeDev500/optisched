@@ -14,7 +14,7 @@ interface PublicUser {
   middleInitial: string;
   email: string;
   designation: string;
-  department: string;
+  department: string | null;
   password: string;
   role: UserRoles;
   status: Status;
@@ -70,11 +70,11 @@ export const getUserById = async (id: number): Promise<PublicUser | null> => {
       role: true,
       status: true,
       password: true,
-      // previousSubjects: true,
-      // yearsOfExperience: true,
+      previousSubjects: true,
+      yearsOfExperience: true,
       // maxTeachingLoad: true,
-      // preferredTimeSlots: true,
-      // unavailableDays: true,
+      preferredTimeSlots: true,
+      availableDays: true,
       createdAt: true,
       updatedAt: true,
     },

@@ -47,7 +47,7 @@ app.use(cookieParser());
 app.use(express.static("public"));
 // Note: File uploads are now handled by Cloudinary, not local storage
 // app.use("/uploads", express.static("uploads")); // Removed - using Cloudinary
-
+app.use("/subject", subjectRoutes);
 app.use("/specializations", specializationRoutes);
 app.use("/auth", authRoutes);
 app.post("/refresh", refreshToken);
@@ -62,12 +62,12 @@ app.use("/protected", verifyToken, async (req: Request, res: Response) => {
 // check verify user middleware
 app.use(verifyToken);
 app.use("/user", userRoutes);
-app.use("/subject", subjectRoutes);
+
 app.use("/user-subject", userSubjectRoutes);
 app.use("/program", academicProgramRoutes);
 app.use("/curriculum", curriculumRoutes);
-app.use("/schedules", schedulesRoutes);
 app.use("/schedules/generation", scheduleGenerationRoutes);
+app.use("/schedules", schedulesRoutes);
 app.use("/rooms", roomRoutes);
 app.use("/total-units", totalUnitsRoutes);
 app.use("/faculty-assignments", facultySubjectAssignmentRoutes);

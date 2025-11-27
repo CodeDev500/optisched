@@ -1,6 +1,54 @@
 import { Request, Response } from "express";
 import { db } from "../utils/db.server";
 
+// Get all schedules for Registrar view
+export const getAllSchedules = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const schedules = await db.subjectSchedule.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: [
+        { program: 'asc' },
+        { yearLevel: 'asc' },
+        { day: 'asc' },
+        { startTime: 'asc' }
+      ]
+    });
+
+    // Map to expected format
+    const formattedSchedules = schedules.map((schedule: any) => ({
+      id: schedule.id,
+      subjectCode: schedule.subjectCode || '',
+      subjectDescription: schedule.subjectName || '',
+      units: schedule.units || 0,
+      time: schedule.time || `${schedule.startTime}-${schedule.endTime}`,
+      day: schedule.day || '',
+      roomNo: schedule.roomName || '',
+      students: schedule.students || '0/50',
+      instructor: schedule.facultyName || 'TBA',
+      program: schedule.program || '',
+      yearLevel: schedule.yearLevel || '',
+      semester: schedule.semester || '',
+      academicYear: schedule.academicYear || ''
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedSchedules
+    });
+  } catch (error) {
+    console.error("Error fetching all schedules:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch all schedules"
+    });
+  }
+};
+
 // Get latest subject schedules (all active schedules)
 export const getLatestSchedules = async (
   req: Request,

@@ -70,7 +70,7 @@ interface SessionRule {
 // 🧠 SESSION RULES CALCULATION
 // ===============================
 
-function calculateSessionRules(lecUnits: number, labUnits: number): SessionRule[] {
+function calculateSessionRules(lecUnits: number, labUnits: number, department?: string): SessionRule[] {
   const rules: SessionRule[] = [];
 
   // LECTURE RULES (Priority 1 - schedule first)
@@ -115,15 +115,32 @@ function calculateSessionRules(lecUnits: number, labUnits: number): SessionRule[
   }
 
   // LABORATORY RULES (Priority 2 - schedule after lectures)
+  // Department-specific: BSCS and ACT use 3 hours per lab unit (1.5h per session)
+  // Other departments: 1 unit = 1 hour
   if (labUnits > 0) {
-    rules.push({
-      type: 'Laboratory',
-      duration: 1.5,
-      totalHoursNeeded: labUnits * 3,
-      sessionsPerWeek: labUnits * 2,
-      hoursPerSession: 1.5,
-      priority: 2
-    });
+    const isBSCSorACT = department && (department.toUpperCase() === 'BSCS' || department.toUpperCase() === 'ACT');
+    
+    if (isBSCSorACT) {
+      // BSCS/ACT: 3 hours per lab unit, split into 1.5h sessions
+      rules.push({
+        type: 'Laboratory',
+        duration: 1.5,
+        totalHoursNeeded: labUnits * 3,
+        sessionsPerWeek: labUnits * 2,
+        hoursPerSession: 1.5,
+        priority: 2
+      });
+    } else {
+      // Other departments: 1 unit = 1 hour
+      rules.push({
+        type: 'Laboratory',
+        duration: 1,
+        totalHoursNeeded: labUnits,
+        sessionsPerWeek: labUnits,
+        hoursPerSession: 1,
+        priority: 2
+      });
+    }
   }
 
   // Sort by priority to ensure lectures are scheduled before labs
@@ -594,6 +611,9 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Get user role from request (assuming it's attached by auth middleware)
+    const userRole = (req as any).user?.role;
+    
     const instructors = await UserService.getInstructors();
     const rooms = await prisma.room.findMany();
     const curriculumCourses = await prisma.curriculumCourse.findMany({
@@ -610,8 +630,12 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
 
     console.log(`✅ Found ${curriculumCourses.length} courses`);
 
+    // Role-based max units: CAMPUS_ADMIN gets 6 units max, others get configured value
     const totalUnitsConfig = await prisma.totalUnits.findFirst();
-    const maxUnits = totalUnitsConfig?.totalUnits || 18;
+    const defaultMaxUnits = totalUnitsConfig?.totalUnits || 18;
+    const maxUnits = userRole === 'CAMPUS_ADMIN' ? 6 : defaultMaxUnits;
+    
+    console.log(`📊 Max units per faculty: ${maxUnits} (Role: ${userRole || 'default'})`);
 
     const facultyWorkload = new Map<string, number>();
     const usedSlots = new Map<string, Set<string>>();
@@ -638,10 +662,11 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
     for (const course of subjectsWithData) {
       const lecUnits = course.lec || 0;
       const labUnits = course.lab || 0;
+      const department = course.programCode || course.programName || undefined;
       
-      const sessionRules = calculateSessionRules(lecUnits, labUnits);
+      const sessionRules = calculateSessionRules(lecUnits, labUnits, department);
       
-      console.log(`\n📖 ${course.subjectCode}: Lec=${lecUnits}u, Lab=${labUnits}u`);
+      console.log(`\n📖 ${course.subjectCode} (${department}): Lec=${lecUnits}u, Lab=${labUnits}u`);
       
       // Schedule lectures FIRST, then labs (due to priority sorting)
       for (const rule of sessionRules) {
@@ -688,7 +713,9 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
             status: 'conflict-free',
             // CRITICAL: Add curriculum year for save functionality
             curriculumYear: curriculumYear,
-            academicYear: curriculumYear
+            academicYear: curriculumYear,
+            // Add number of students field (default 0/50)
+            numberOfStudents: '0/50'
           });
         });
       }
@@ -1185,7 +1212,6 @@ export const getProspectusSchedules = async (req: Request, res: Response): Promi
   }
 };
 
-// ===============================
 // 📝 CREATE SCHEDULE ITEM
 // ===============================
 export const createScheduleItem = async (req: Request, res: Response): Promise<void> => {
@@ -1207,7 +1233,8 @@ export const createScheduleItem = async (req: Request, res: Response): Promise<v
       program,
       yearLevel,
       type,
-      totalStudents
+      totalStudents,
+      students
     } = req.body;
 
     // Validate required fields
@@ -1242,7 +1269,7 @@ export const createScheduleItem = async (req: Request, res: Response): Promise<v
         yearLevel,
         type: type || 'Lecture',
         status: 'active',
-        students: totalStudents ? String(totalStudents) : '0',
+        students: students ? String(students) : (totalStudents ? String(totalStudents) : '0/50'),
         totalStudents: totalStudents || 0
       }
     });
@@ -1278,7 +1305,8 @@ export const updateScheduleItem = async (req: Request, res: Response): Promise<v
       program,
       yearLevel,
       type,
-      totalStudents
+      totalStudents,
+      students
     } = req.body;
 
     // Check if schedule exists
@@ -1317,7 +1345,7 @@ export const updateScheduleItem = async (req: Request, res: Response): Promise<v
         program,
         yearLevel,
         type: type || 'Lecture',
-        students: totalStudents ? String(totalStudents) : '0',
+        students: students ? String(students) : (totalStudents ? String(totalStudents) : '0/50'),
         totalStudents: totalStudents || 0
       }
     });

@@ -19,7 +19,7 @@ export const registerUserSchema = z
       .string()
       .trim()
       .min(1, { message: "Designation is required" }),
-    department: z.string().trim().min(1, { message: "Department is required" }),
+    department: z.string().trim().optional().nullable(),
     specialization: z
       .array(z.string().trim())
       .optional()

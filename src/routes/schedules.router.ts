@@ -8,9 +8,13 @@ import {
   getInstructors,
   submitForApproval,
   getLatestSchedules,
+  getAllSchedules,
 } from "../controllers/schedules.controller";
 
 const router = Router();
+
+// Get all schedules for Registrar view
+router.get("/all", getAllSchedules);
 
 // Get latest schedules (all active subject schedules)
 router.get("/latest", getLatestSchedules);
