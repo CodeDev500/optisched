@@ -66,6 +66,12 @@ export const updateUser = async (req: Request, res: Response) => {
     const { id } = req.params;
     const updateData = req.body;
     
+    console.log('Update user request:', {
+      id,
+      updateData: JSON.stringify(updateData, null, 2),
+      hasFile: !!req.file
+    });
+    
     // Handle uploaded image
     if (req.file) {
       updateData.image = req.file.path;
@@ -73,16 +79,21 @@ export const updateUser = async (req: Request, res: Response) => {
     
     const updatedUser = await UserService.updateUser(parseInt(id), updateData);
     
+    console.log('User updated successfully:', updatedUser.id);
+    
     res.status(200).json({ 
       success: true, 
       message: 'User updated successfully',
       data: updatedUser 
     });
   } catch (error: any) {
-    console.error('Error updating user:', error);
+    console.error('Error updating user - Full error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       success: false,
-      message: "Failed to update user" 
+      message: error.message || "Failed to update user",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

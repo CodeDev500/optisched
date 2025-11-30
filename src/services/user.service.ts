@@ -212,6 +212,12 @@ export const updateUser = async (
     }
   }
 
+  // Parse yearsOfExperience if it's a string
+  let yearsOfExperience = data.yearsOfExperience;
+  if (typeof data.yearsOfExperience === 'string') {
+    yearsOfExperience = parseInt(data.yearsOfExperience) || 0;
+  }
+
   return db.user.update({
     where: { id },
     data: {
@@ -220,6 +226,7 @@ export const updateUser = async (
       previousSubjects: previousSubjects as any,
       preferredTimeSlots: preferredTimeSlots as any,
       availableDays: availableDays as any,
+      yearsOfExperience: yearsOfExperience,
     },
     select: {
       id: true,
@@ -234,6 +241,10 @@ export const updateUser = async (
       role: true,
       status: true,
       password: true,
+      previousSubjects: true,
+      yearsOfExperience: true,
+      preferredTimeSlots: true,
+      availableDays: true,
       createdAt: true,
       updatedAt: true,
     },

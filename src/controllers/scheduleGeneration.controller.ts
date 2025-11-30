@@ -1,3 +1,63 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 📅 OPTISCHED - INTELLIGENT SCHEDULE GENERATION SYSTEM
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * This module implements an intelligent, automated scheduling algorithm that
+ * generates optimal class schedules while considering multiple constraints:
+ * 
+ * KEY FEATURES:
+ * ✅ Faculty Recommendation System - Matches faculty based on:
+ *    • Specialization alignment with course tags
+ *    • Previous teaching experience with the subject
+ *    • Years of experience in the field
+ *    • Faculty designation (Regular vs Part-time)
+ *    • Current workload availability
+ * 
+ * ✅ Role-Based Workload Management:
+ *    • Faculty: 18 units max
+ *    • Department Head: 15 units max
+ *    • Campus Admin: 12 units max
+ * 
+ * ✅ Department-Specific Rules:
+ *    • BSCS/ACT: 1 lab unit = 3 contact hours (2 sessions × 1.5h)
+ *    • Other departments: 1 lab unit = 1 contact hour (1 session × 1h)
+ * 
+ * ✅ Conflict-Free Scheduling:
+ *    • Prevents faculty double-booking
+ *    • Prevents room conflicts
+ *    • Prevents student section overlaps
+ *    • Avoids lunch break (12:00-13:00)
+ * 
+ * ✅ Priority-Based Scheduling:
+ *    • Higher year levels scheduled first (4th → 1st)
+ *    • Courses with more units scheduled first
+ *    • Lectures scheduled before laboratories
+ * 
+ * ALGORITHM FLOW:
+ * 1. Fetch courses, faculty, rooms, and academic data
+ * 2. Initialize tracking structures (workload, time slots, rooms)
+ * 3. Sort courses by priority (year level, units)
+ * 4. For each course:
+ *    a. Calculate session rules (lecture/lab splits)
+ *    b. Find best faculty matches using scoring algorithm
+ *    c. For each session (lectures first, then labs):
+ *       - Try each faculty candidate
+ *       - Try each day pair (MW, TTh, etc.)
+ *       - Try each time slot
+ *       - Try each suitable room
+ *       - Check all conflicts
+ *       - If valid → Schedule and update tracking
+ * 5. Save scheduled sessions to database
+ * 6. Return results (scheduled + unscheduled courses)
+ * 
+ * For detailed documentation, see: SCHEDULE_GENERATION_DOCUMENTATION.md
+ * 
+ * @module scheduleGeneration.controller
+ * @author OptiSched Development Team
+ * @version 1.0
+ */
+
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { UserRole } from '../constants/constants';
@@ -5,9 +65,9 @@ import * as UserService from "../services/user.service";
 
 const prisma = new PrismaClient();
 
-// ===============================
+// ═══════════════════════════════════════════════════════════════════════════
 // 📅 SCHEDULING CONSTANTS
-// ===============================
+// ═══════════════════════════════════════════════════════════════════════════
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -215,6 +275,54 @@ function calculateFacultyMatchScore(courseTags: string[], facultySpecializations
   return Math.round((matchedTagsCount / normalizedCourseTags.length) * 100);
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🎯 FACULTY RECOMMENDATION SCORING ALGORITHM
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * Calculates a comprehensive score for matching a faculty member to a course.
+ * Higher scores indicate better matches.
+ * 
+ * SCORING COMPONENTS:
+ * 
+ * 1. SPECIALIZATION MATCH (0-100)
+ *    - Compares course tags with faculty specializations
+ *    - Formula: (Matched Tags / Total Course Tags) × 100
+ *    - Example: Course ["Programming", "Web Dev"], Faculty ["Programming", "Web Dev"] → Perfect match (100)
+ *    - Example: Course ["Programming", "Web Dev"], Faculty ["Programming"] → Partial match (50)
+ * 
+ * 2. PREVIOUS SUBJECT EXPERIENCE
+ *    - Checks if faculty has taught this exact subject before
+ *    - Matches against previousSubjects array
+ *    - Compares both subject code and subject name
+ *    - Adds significant weight to the score if match is found
+ * 
+ * 3. YEARS OF EXPERIENCE
+ *    - Awards score based on teaching experience
+ *    - Capped at maximum threshold to balance with other factors
+ *    - Formula: min(yearsOfExperience, 20)
+ * 
+ * 4. FACULTY DESIGNATION
+ *    - Regular faculty members receive additional scoring weight
+ *    - Encourages assignment to permanent staff over part-time instructors
+ * 
+ * 5. WORKLOAD AVAILABILITY (Disqualifier)
+ *    - If faculty is at or over max units → score = -1000 (disqualified)
+ *    - Ensures faculty don't exceed their workload limits
+ * 
+ * EXAMPLE SCORES:
+ * • Perfect match (100% specialization, taught before, 10yr experience, regular, available): High score
+ * • Good match (50% specialization, not taught, 5yr experience, part-time, available): Moderate score
+ * • Overloaded faculty (any combination): Disqualified (negative score)
+ * 
+ * @param course - The course to be assigned
+ * @param faculty - The faculty member being evaluated
+ * @param courseTags - Array of tags/keywords for the course
+ * @param facultySpecializations - Array of faculty's specialization areas
+ * @param currentWorkload - Faculty's current unit load
+ * @param maxUnits - Maximum units allowed for this faculty (role-based)
+ * @returns Numeric score (higher is better, -1000 means disqualified)
+ */
 function calculateEnhancedFacultyScore(
   course: any,
   faculty: any,
@@ -225,9 +333,11 @@ function calculateEnhancedFacultyScore(
 ): number {
   let score = 0;
   
+  // 1. Specialization Match (0-100 points)
   const tagMatchPercentage = calculateFacultyMatchScore(courseTags, facultySpecializations);
   score += tagMatchPercentage;
   
+  // 2. Previous Subject Experience (+50 points)
   const previousSubjects = parseJsonArray(faculty.previousSubjects || []);
   const hasTaughtSubject = previousSubjects.some((prevSubj: string) => 
     prevSubj.toLowerCase().trim() === course.subjectCode.toLowerCase().trim() ||
@@ -235,12 +345,15 @@ function calculateEnhancedFacultyScore(
   );
   if (hasTaughtSubject) score += 50;
   
+  // 3. Years of Experience (0-20 points, capped)
   const experience = faculty.yearsOfExperience || 0;
   score += Math.min(experience, 20);
   
+  // 4. Faculty Designation (+10 points for regular faculty)
   const isRegularFaculty = faculty.designation && faculty.designation.toLowerCase().includes('regular');
   if (isRegularFaculty) score += 10;
   
+  // 5. Workload Check (Disqualifier: -1000 if over limit)
   if (currentWorkload >= maxUnits) score = -1000;
   
   return score;
@@ -276,6 +389,66 @@ function findBestFacultyMatches(
       matchScore: enhancedScore,
       tagMatchPercentage: tagMatchPercentage,
       currentWorkload: currentLoad
+    };
+  });
+
+  const sortedFaculty = facultyWithScores.sort((a, b) => {
+    if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+    if (b.tagMatchPercentage !== a.tagMatchPercentage) return b.tagMatchPercentage - a.tagMatchPercentage;
+    const aExp = a.yearsOfExperience || 0;
+    const bExp = b.yearsOfExperience || 0;
+    if (bExp !== aExp) return bExp - aExp;
+    return a.lastname.localeCompare(b.lastname);
+  });
+  
+  const rankedFaculty = sortedFaculty.map((faculty, index) => ({
+    ...faculty,
+    rank: index + 1
+  }));
+  
+  const goodMatches = rankedFaculty.filter(f => f.matchScore > 0);
+  
+  if (goodMatches.length >= maxMatches) {
+    return goodMatches.slice(0, maxMatches);
+  }
+  
+  const fallbackFaculty = rankedFaculty.filter(f => f.matchScore <= 0).slice(0, maxMatches - goodMatches.length);
+  return [...goodMatches, ...fallbackFaculty];
+}
+
+// New function that uses per-instructor max units based on their role
+function findBestFacultyMatchesWithRoles(
+  course: any, 
+  instructors: any[], 
+  facultyWorkload: Map<string, number>,
+  instructorMaxUnits: Map<string, number>,
+  maxMatches: number = 5
+): any[] {
+  const courseTags = parseJsonArray(course.tags);
+  
+  const facultyWithScores = instructors.map(instructor => {
+    const specialization = instructor.specialization || instructor.designation || '';
+    const facultySpecializations = parseJsonArray(specialization);
+    const currentLoad = facultyWorkload.get(instructor.id.toString()) || 0;
+    const maxUnits = instructorMaxUnits.get(instructor.id.toString()) || 18;
+    
+    const enhancedScore = calculateEnhancedFacultyScore(
+      course,
+      instructor,
+      courseTags,
+      facultySpecializations,
+      currentLoad,
+      maxUnits
+    );
+    
+    const tagMatchPercentage = calculateFacultyMatchScore(courseTags, facultySpecializations);
+    
+    return {
+      ...instructor,
+      matchScore: enhancedScore,
+      tagMatchPercentage: tagMatchPercentage,
+      currentWorkload: currentLoad,
+      maxUnits: maxUnits
     };
   });
 
@@ -407,7 +580,7 @@ function scheduleSubjectSessions(
   usedProgramYearSlots: Map<string, Set<string>>,
   scheduledSubjects: any[],
   semester: string,
-  maxUnits: number,
+  instructorMaxUnits: Map<string, number>,
   usedDayPairsForSubject: Map<string, string[]>
 ): ScheduledSession[] {
   
@@ -499,12 +672,13 @@ function scheduleSubjectSessions(
           
           const facultyId = faculty.id.toString();
           const currentWorkload = facultyWorkload.get(facultyId) || 0;
+          const facultyMaxUnits = instructorMaxUnits.get(facultyId) || 18;
           
           const alreadyTeaching = scheduledSubjects.some(s => 
             s.subjectCode === course.subjectCode && s.facultyId === facultyId && s.semester === semester
           );
           
-          if (!alreadyTeaching && currentWorkload + (course.units || 0) > maxUnits) {
+          if (!alreadyTeaching && currentWorkload + (course.units || 0) > facultyMaxUnits) {
             continue;
           }
           
@@ -630,12 +804,21 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
 
     console.log(`✅ Found ${curriculumCourses.length} courses`);
 
-    // Role-based max units: CAMPUS_ADMIN gets 6 units max, others get configured value
+    // Get default max units from configuration
     const totalUnitsConfig = await prisma.totalUnits.findFirst();
     const defaultMaxUnits = totalUnitsConfig?.totalUnits || 18;
-    const maxUnits = userRole === 'CAMPUS_ADMIN' ? 6 : defaultMaxUnits;
     
-    console.log(`📊 Max units per faculty: ${maxUnits} (Role: ${userRole || 'default'})`);
+    console.log(`📊 Default max units per faculty: ${defaultMaxUnits}`);
+
+    // Create a map of instructor max units based on their role
+    const instructorMaxUnits = new Map<string, number>();
+    instructors.forEach(instructor => {
+      const maxUnits = instructor.role === 'CAMPUS_ADMIN' ? 6 : defaultMaxUnits;
+      instructorMaxUnits.set(instructor.id.toString(), maxUnits);
+      if (instructor.role === 'CAMPUS_ADMIN') {
+        console.log(`   👤 ${instructor.firstname} ${instructor.lastname} (CAMPUS_ADMIN): max ${maxUnits} units`);
+      }
+    });
 
     const facultyWorkload = new Map<string, number>();
     const usedSlots = new Map<string, Set<string>>();
@@ -652,7 +835,8 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
         });
         
         const courseWithTags = { ...course, tags: subject?.tags || null };
-        const recommendedFaculty = findBestFacultyMatches(courseWithTags, instructors, facultyWorkload, 5, maxUnits);
+        // Pass instructorMaxUnits map to findBestFacultyMatches
+        const recommendedFaculty = findBestFacultyMatchesWithRoles(courseWithTags, instructors, facultyWorkload, instructorMaxUnits, 5);
 
         return { ...courseWithTags, recommendedFaculty };
       })
@@ -681,7 +865,7 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
           usedProgramYearSlots,
           scheduledSubjects,
           semester,
-          maxUnits,
+          instructorMaxUnits,
           usedDayPairsForSubject
         );
         
