@@ -244,6 +244,92 @@ function timeRangesOverlap(start1: string, end1: string, start2: string, end2: s
   return start1Min < end2Min && start2Min < end1Min;
 }
 
+/**
+ * Check for schedule overlaps in the same curriculum year, semester, and program
+ * Returns conflicting schedule if found, null otherwise
+ */
+async function checkScheduleOverlap(
+  day: string,
+  startTime: string,
+  endTime: string,
+  yearLevel: string,
+  semester: string,
+  academicYear: string,
+  program: string,
+  excludeId?: number
+): Promise<any | null> {
+  try {
+    const existingSchedules = await prisma.subjectSchedule.findMany({
+      where: {
+        day,
+        yearLevel,
+        semester,
+        academicYear,
+        program,
+        ...(excludeId !== undefined && { id: { not: excludeId } })
+      }
+    });
+
+    for (const existing of existingSchedules) {
+      if (timeRangesOverlap(startTime, endTime, existing.startTime, existing.endTime)) {
+        return existing;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error checking schedule overlap:', error);
+    return null;
+  }
+}
+
+/**
+ * Check for instructor conflicts (same instructor, same time, same day)
+ * Returns conflicting schedule if found, null otherwise
+ */
+async function checkInstructorConflict(
+  instructorId: string,
+  day: string,
+  startTime: string,
+  endTime: string,
+  semester: string,
+  academicYear: string,
+  excludeId?: number
+): Promise<any | null> {
+  try {
+    const existingSchedules = await prisma.subjectSchedule.findMany({
+      where: {
+        facultyId: instructorId,
+        day,
+        semester,
+        academicYear,
+        ...(excludeId !== undefined && { id: { not: excludeId } })
+      }
+    });
+
+    for (const existing of existingSchedules) {
+      if (timeRangesOverlap(startTime, endTime, existing.startTime, existing.endTime)) {
+        return existing;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error checking instructor conflict:', error);
+    return null;
+  }
+}
+
+/**
+ * Format time from 24-hour to 12-hour format with AM/PM
+ */
+function formatTime12Hour(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
 function isValidTimeSlot(startTime: string, endTime: string): boolean {
   const startMin = timeToMinutes(startTime);
   const endMin = timeToMinutes(endTime);
@@ -1427,6 +1513,49 @@ export const createScheduleItem = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    // Check for schedule overlap with same curriculum year, semester, and program
+    const scheduleOverlap = await checkScheduleOverlap(
+      day,
+      startTime,
+      endTime,
+      yearLevel,
+      semester,
+      academicYear,
+      program
+    );
+
+    if (scheduleOverlap) {
+      const formattedStart = formatTime12Hour(scheduleOverlap.startTime);
+      const formattedEnd = formatTime12Hour(scheduleOverlap.endTime);
+      res.status(400).json({
+        success: false,
+        message: `Cannot save this schedule. Overlap with ${scheduleOverlap.subjectCode} - ${scheduleOverlap.subjectName} ${formattedStart} - ${formattedEnd}`
+      });
+      return;
+    }
+
+    // Check for instructor conflict if facultyId is provided
+    if (facultyId && facultyId !== 'TBA') {
+      const instructorConflict = await checkInstructorConflict(
+        facultyId,
+        day,
+        startTime,
+        endTime,
+        semester,
+        academicYear
+      );
+
+      if (instructorConflict) {
+        const formattedStart = formatTime12Hour(instructorConflict.startTime);
+        const formattedEnd = formatTime12Hour(instructorConflict.endTime);
+        res.status(400).json({
+          success: false,
+          message: `Cannot save this schedule. Instructor ${facultyName} is already assigned to ${instructorConflict.subjectCode} - ${instructorConflict.subjectName} on ${day} ${formattedStart} - ${formattedEnd}`
+        });
+        return;
+      }
+    }
+
     // Create the schedule item
     const newSchedule = await prisma.subjectSchedule.create({
       data: {
@@ -1501,6 +1630,51 @@ export const updateScheduleItem = async (req: Request, res: Response): Promise<v
     if (!existingSchedule) {
       res.status(404).json({ success: false, message: 'Schedule not found' });
       return;
+    }
+
+    // Check for schedule overlap (excluding current schedule)
+    const scheduleOverlap = await checkScheduleOverlap(
+      day,
+      startTime,
+      endTime,
+      yearLevel,
+      semester,
+      academicYear,
+      program,
+      parseInt(id)
+    );
+
+    if (scheduleOverlap) {
+      const formattedStart = formatTime12Hour(scheduleOverlap.startTime);
+      const formattedEnd = formatTime12Hour(scheduleOverlap.endTime);
+      res.status(400).json({
+        success: false,
+        message: `Cannot save this schedule. Overlap with ${scheduleOverlap.subjectCode} - ${scheduleOverlap.subjectName} ${formattedStart} - ${formattedEnd}`
+      });
+      return;
+    }
+
+    // Check for instructor conflict (excluding current schedule)
+    if (facultyId && facultyId !== 'TBA') {
+      const instructorConflict = await checkInstructorConflict(
+        facultyId,
+        day,
+        startTime,
+        endTime,
+        semester,
+        academicYear,
+        parseInt(id)
+      );
+
+      if (instructorConflict) {
+        const formattedStart = formatTime12Hour(instructorConflict.startTime);
+        const formattedEnd = formatTime12Hour(instructorConflict.endTime);
+        res.status(400).json({
+          success: false,
+          message: `Cannot save this schedule. Instructor ${facultyName} is already assigned to ${instructorConflict.subjectCode} - ${instructorConflict.subjectName} on ${day} ${formattedStart} - ${formattedEnd}`
+        });
+        return;
+      }
     }
 
     // Update the schedule item
