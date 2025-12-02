@@ -362,6 +362,7 @@ model SubjectSchedule {
   isActive           Boolean? @default(true) @map("isActive")
   generationId       Int?     @map("generationId")
   generation         ScheduleGeneration? @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  lastGenerated      DateTime? @map("lastGenerated")
   createdAt          DateTime @default(now()) @map("createdAt")
   updatedAt          DateTime @updatedAt @map("updatedAt")
 

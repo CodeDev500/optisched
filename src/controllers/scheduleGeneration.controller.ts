@@ -89,7 +89,7 @@ const LAB_DAY_PAIRS = [
   ["Tuesday", "Friday"],
 ];
 
-// Time slots for 1-hour sessions
+// Time slots for 1-hour sessions (7:00 AM - 8:00 PM)
 const TIME_SLOTS_1H = [
   { start: "07:00", end: "08:00" },
   { start: "08:00", end: "09:00" },
@@ -105,16 +105,30 @@ const TIME_SLOTS_1H = [
   { start: "19:00", end: "20:00" },
 ];
 
-// Time slots for 1.5-hour sessions
+// Time slots for 1.5-hour sessions (7:00 AM - 8:00 PM)
+// Note: Some slots may extend slightly beyond 8:00 PM to accommodate full sessions
 const TIME_SLOTS_1_5H = [
   { start: "07:00", end: "08:30" },
+  { start: "08:00", end: "09:30" },
   { start: "08:30", end: "10:00" },
+  { start: "09:00", end: "10:30" },
+  { start: "09:30", end: "11:00" },
   { start: "10:00", end: "11:30" },
+  { start: "10:30", end: "12:00" },
+  { start: "11:00", end: "12:30" },
   { start: "13:00", end: "14:30" },
+  { start: "13:30", end: "15:00" },
+  { start: "14:00", end: "15:30" },
   { start: "14:30", end: "16:00" },
+  { start: "15:00", end: "16:30" },
+  { start: "15:30", end: "17:00" },
   { start: "16:00", end: "17:30" },
+  { start: "16:30", end: "18:00" },
+  { start: "17:00", end: "18:30" },
   { start: "17:30", end: "19:00" },
-  { start: "19:00", end: "20:30" },
+  { start: "18:00", end: "19:30" },
+  { start: "18:30", end: "20:00" },
+
 ];
 
 interface SessionRule {
@@ -362,6 +376,133 @@ function calculateFacultyMatchScore(courseTags: string[], facultySpecializations
 }
 
 /**
+ * Check if a faculty member is available on specific days based on their availableDays
+ */
+function isFacultyAvailableOnDays(faculty: any, days: string[]): boolean {
+  if (!faculty.availableDays) {
+    // If no availability data, assume available (backward compatibility)
+    return true;
+  }
+
+  const availableDays = parseJsonArray(faculty.availableDays);
+  if (!availableDays || availableDays.length === 0) {
+    return true;
+  }
+
+  // Check if all required days are in the faculty's available days
+  return days.every(day => availableDays.includes(day));
+}
+
+/**
+ * Check if a time slot falls within faculty's preferred time slots
+ * Handles two formats:
+ * 1. Array format: ["start:08:00", "end:17:00"]
+ * 2. String format: "8:00 AM - 5:00 PM"
+ */
+function isFacultyAvailableAtTime(faculty: any, startTime: string, endTime: string): boolean {
+  if (!faculty.preferredTimeSlots) {
+    // If no time preference data, assume available (backward compatibility)
+    console.log(`      ⚠️ No preferredTimeSlots for faculty, assuming available`);
+    return true;
+  }
+
+  const preferredTimeSlots = parseJsonArray(faculty.preferredTimeSlots);
+  if (!preferredTimeSlots || preferredTimeSlots.length === 0) {
+    console.log(`      ⚠️ Empty preferredTimeSlots for faculty, assuming available`);
+    return true;
+  }
+
+  const startMin = timeToMinutes(startTime);
+  const endMin = timeToMinutes(endTime);
+
+  // console.log(`      🕐 Checking time availability: ${startTime}-${endTime} (${startMin}-${endMin} mins)`);
+  // console.log(`      📋 Faculty preferred slots:`, preferredTimeSlots);
+
+  // Check if it's the array format: ["start:08:00", "end:17:00"]
+  let slotStart: string | null = null;
+  let slotEnd: string | null = null;
+
+  for (const item of preferredTimeSlots) {
+    if (typeof item === 'string') {
+      if (item.startsWith('start:')) {
+        slotStart = item.replace('start:', '');
+      } else if (item.startsWith('end:')) {
+        slotEnd = item.replace('end:', '');
+      }
+    }
+  }
+
+  // If we found start and end in array format
+  if (slotStart && slotEnd) {
+    const slotStartMin = timeToMinutes(slotStart);
+    const slotEndMin = timeToMinutes(slotEnd);
+
+    // console.log(`      📊 Parsed slot (array format): ${slotStart}-${slotEnd} (${slotStartMin}-${slotEndMin} mins)`);
+
+    // Check if the requested time falls within this preferred slot
+    if (startMin >= slotStartMin && endMin <= slotEndMin) {
+      // console.log(`      ✅ Time slot ${startTime}-${endTime} fits within ${slotStart}-${slotEnd}`);
+      return true;
+    } else {
+      // console.log(`      ❌ Time slot ${startTime}-${endTime} does NOT fit within ${slotStart}-${slotEnd}`);
+      return false;
+    }
+  }
+
+  // Fallback: Try parsing as string format "8:00 AM - 5:00 PM"
+  for (const slot of preferredTimeSlots) {
+    if (typeof slot !== 'string' || slot.includes('start:') || slot.includes('end:')) {
+      continue;
+    }
+
+    // Parse time slot format like "8:00 AM - 5:00 PM"
+    const match = slot.match(/(\d{1,2}:\d{2})\s*(AM|PM)?\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)?/i);
+    if (!match) {
+      console.log(`      ⚠️ Could not parse slot: "${slot}"`);
+      continue;
+    }
+
+    let [_, slotStartTime, slotStartPeriod, slotEndTime, slotEndPeriod] = match;
+    
+    // Convert to 24-hour format
+    let parsedStart = slotStartTime;
+    let parsedEnd = slotEndTime;
+    
+    if (slotStartPeriod) {
+      const [hours, minutes] = slotStartTime.split(':').map(Number);
+      let hour24 = hours;
+      if (slotStartPeriod.toUpperCase() === 'PM' && hours !== 12) hour24 += 12;
+      if (slotStartPeriod.toUpperCase() === 'AM' && hours === 12) hour24 = 0;
+      parsedStart = `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+    
+    if (slotEndPeriod) {
+      const [hours, minutes] = slotEndTime.split(':').map(Number);
+      let hour24 = hours;
+      if (slotEndPeriod.toUpperCase() === 'PM' && hours !== 12) hour24 += 12;
+      if (slotEndPeriod.toUpperCase() === 'AM' && hours === 12) hour24 = 0;
+      parsedEnd = `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+
+    const slotStartMin = timeToMinutes(parsedStart);
+    const slotEndMin = timeToMinutes(parsedEnd);
+
+    // console.log(`      📊 Parsed slot (string format): ${parsedStart}-${parsedEnd} (${slotStartMin}-${slotEndMin} mins)`);
+
+    // Check if the requested time falls within this preferred slot
+    if (startMin >= slotStartMin && endMin <= slotEndMin) {
+      // console.log(`      ✅ Time slot ${startTime}-${endTime} fits within ${parsedStart}-${parsedEnd}`);
+      return true;
+    } else {
+      // console.log(`      ❌ Time slot ${startTime}-${endTime} does NOT fit within ${parsedStart}-${parsedEnd}`);
+    }
+  }
+
+  // console.log(`      ❌ No matching preferred time slot found`);
+  return false;
+}
+
+/**
  * ═══════════════════════════════════════════════════════════════════════════
  * 🎯 FACULTY RECOMMENDATION SCORING ALGORITHM
  * ═══════════════════════════════════════════════════════════════════════════
@@ -425,10 +566,16 @@ function calculateEnhancedFacultyScore(
   
   // 2. Previous Subject Experience (+50 points)
   const previousSubjects = parseJsonArray(faculty.previousSubjects || []);
-  const hasTaughtSubject = previousSubjects.some((prevSubj: string) => 
-    prevSubj.toLowerCase().trim() === course.subjectCode.toLowerCase().trim() ||
-    prevSubj.toLowerCase().trim() === course.subjectName.toLowerCase().trim()
-  );
+  const hasTaughtSubject = previousSubjects.some((prevSubj: string) => {
+    // Skip null, undefined, or non-string values
+    if (!prevSubj || typeof prevSubj !== 'string') return false;
+    
+    const prevSubjLower = prevSubj.toLowerCase().trim();
+    const subjectCodeLower = course.subjectCode?.toLowerCase().trim() || '';
+    const subjectNameLower = course.subjectName?.toLowerCase().trim() || '';
+    
+    return prevSubjLower === subjectCodeLower || prevSubjLower === subjectNameLower;
+  });
   if (hasTaughtSubject) score += 50;
   
   // 3. Years of Experience (0-20 points, capped)
@@ -606,6 +753,7 @@ function isRoomAvailable(
 
 /**
  * Check if faculty is available at a specific time (includes 30-min break check)
+ * Now also checks faculty's availableDays and preferredTimeSlots
  */
 function isFacultyAvailable(
   facultyId: string,
@@ -613,9 +761,22 @@ function isFacultyAvailable(
   startTime: string,
   endTime: string,
   semester: string,
-  usedSlots: Map<string, Set<string>>
+  usedSlots: Map<string, Set<string>>,
+  faculty?: any
 ): boolean {
   const facultySlots = usedSlots.get(facultyId) || new Set();
+  
+  // Check faculty's day availability
+  if (faculty && !isFacultyAvailableOnDays(faculty, days)) {
+    console.log(`      ❌ Faculty not available on days: ${days.join(', ')}`);
+    return false;
+  }
+  
+  // Check faculty's time availability
+  if (faculty && !isFacultyAvailableAtTime(faculty, startTime, endTime)) {
+    console.log(`      ❌ Faculty not available at time: ${startTime}-${endTime}`);
+    return false;
+  }
   
   for (const day of days) {
     for (const existingSlot of facultySlots) {
@@ -760,16 +921,21 @@ function scheduleSubjectSessions(
           const currentWorkload = facultyWorkload.get(facultyId) || 0;
           const facultyMaxUnits = instructorMaxUnits.get(facultyId) || 18;
           
+          // console.log(`      👤 Checking faculty: ${faculty.firstname} ${faculty.lastname}`);
+          // console.log(`      📅 Available Days:`, faculty.availableDays);
+          // console.log(`      🕐 Preferred Time:`, faculty.preferredTimeSlots);
+          
           const alreadyTeaching = scheduledSubjects.some(s => 
             s.subjectCode === course.subjectCode && s.facultyId === facultyId && s.semester === semester
           );
           
           if (!alreadyTeaching && currentWorkload + (course.units || 0) > facultyMaxUnits) {
+            console.log(`      ⚠️ Workload exceeded: ${currentWorkload} + ${course.units} > ${facultyMaxUnits}`);
             continue;
           }
           
-          // Check faculty availability
-          if (!isFacultyAvailable(facultyId, [day1, day2], startTime, endTime, semester, usedSlots)) {
+          // Check faculty availability (including day and time preferences)
+          if (!isFacultyAvailable(facultyId, [day1, day2], startTime, endTime, semester, usedSlots, faculty)) {
             continue;
           }
           
@@ -1157,9 +1323,15 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
     };
 
     res.json({ success: true, data: [generatedSchedule] });
-  } catch (error) {
-    console.error('Error generating schedule:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate schedule' });
+  } catch (error: any) {
+    console.error('❌ Error generating schedule:', error);
+    console.error('Error stack:', error?.stack);
+    console.error('Error message:', error?.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to generate schedule',
+      error: error?.message || 'Unknown error'
+    });
   }
 };
 
@@ -1240,6 +1412,8 @@ export const saveLatestSchedule = async (req: Request, res: Response): Promise<v
     
     console.log(`✅ Deleted ${deleteResult.count} schedules`);
 
+    const now = new Date();
+    
     await prisma.subjectSchedule.createMany({
       data: subjects.map((item: any) => ({
         sourceId: String(item.id ?? ''),
@@ -1279,6 +1453,7 @@ export const saveLatestSchedule = async (req: Request, res: Response): Promise<v
         instructorId: item.instructorId ?? null,
         roomLegacyId: item.roomLegacyId ?? null,
         isActive: typeof item.isActive === 'boolean' ? item.isActive : true,
+        lastGenerated: now,
       })) as any
     });
 
