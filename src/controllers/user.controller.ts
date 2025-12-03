@@ -141,6 +141,16 @@ export const getFacultyWithLoad = async (req: Request, res: Response) => {
             // academicYear: String(curriculumYear),
             // semester: String(semester),
           },
+          select: {
+            id: true,
+            units: true,
+            lec: true,
+            lab: true,
+            subjectCode: true,
+            subjectName: true,
+            facultyId: true,
+            // Exclude lastGenerated to avoid DB error if column doesn't exist
+          },
         });
 
         // Calculate total units (sum of all subject units)

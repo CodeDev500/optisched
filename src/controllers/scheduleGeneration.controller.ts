@@ -699,14 +699,12 @@ function findBestFacultyMatchesWithRoles(
     rank: index + 1
   }));
   
-  const goodMatches = rankedFaculty.filter(f => f.matchScore > 0);
+  // CRITICAL FIX: Only return faculty with positive match scores AND tag match > 0%
+  // This ensures we don't assign faculty with 0% specialization match
+  const goodMatches = rankedFaculty.filter(f => f.matchScore > 0 && f.tagMatchPercentage > 0);
   
-  if (goodMatches.length >= maxMatches) {
-    return goodMatches.slice(0, maxMatches);
-  }
-  
-  const fallbackFaculty = rankedFaculty.filter(f => f.matchScore <= 0).slice(0, maxMatches - goodMatches.length);
-  return [...goodMatches, ...fallbackFaculty];
+  // Return only faculty with actual tag matches, up to maxMatches
+  return goodMatches.slice(0, maxMatches);
 }
 
 // ===============================
@@ -861,80 +859,89 @@ function scheduleSubjectSessions(
     console.log(`   🔗 Scheduling paired sessions (same time, different days)`);
     
     let scheduledPair = false;
+    const recommendedFaculty = course.recommendedFaculty || instructors;
     
-    for (const dayPair of dayPairsToTry) {
+    // CRITICAL FIX: Try each faculty member (by rank) across ALL day pairs and time slots
+    // before moving to the next faculty. This ensures rank 1 is prioritized.
+    for (const faculty of recommendedFaculty) {
       if (scheduledPair) break;
       
-      const [day1, day2] = dayPair;
-      console.log(`   📅 Trying: ${day1} & ${day2}`);
+      const facultyId = faculty.id.toString();
+      const currentWorkload = facultyWorkload.get(facultyId) || 0;
+      const facultyMaxUnits = instructorMaxUnits.get(facultyId) || 18;
       
-      for (const slot of timeSlots) {
+      console.log(`   👤 Trying faculty rank #${faculty.rank}: ${faculty.firstname} ${faculty.lastname} (Tag Match: ${faculty.tagMatchPercentage}%, Load: ${currentWorkload}/${facultyMaxUnits})`);
+      
+      const alreadyTeaching = scheduledSubjects.some(s => 
+        s.subjectCode === course.subjectCode && s.facultyId === facultyId && s.semester === semester
+      );
+      
+      // Check workload limit - skip this faculty if overloaded
+      if (!alreadyTeaching && currentWorkload + (course.units || 0) > facultyMaxUnits) {
+        console.log(`      ⚠️ Workload exceeded: ${currentWorkload} + ${course.units} > ${facultyMaxUnits} - Skipping faculty`);
+        continue;
+      }
+      
+      // Try all day pairs for this faculty
+      for (const dayPair of dayPairsToTry) {
         if (scheduledPair) break;
         
-        const startTime = slot.start;
-        const endTime = minutesToTime(timeToMinutes(startTime) + durationMinutes);
+        const [day1, day2] = dayPair;
         
-        if (!isValidTimeSlot(startTime, endTime)) continue;
-        
-        console.log(`      ⏰ Trying: ${startTime}-${endTime}`);
-        
-        // Check program-year conflicts
-        const programYearSlots = usedProgramYearSlots.get(programYearKey) || new Set();
-        const slot1Key = `${day1}|${startTime}|${endTime}`;
-        const slot2Key = `${day2}|${startTime}|${endTime}`;
-        
-        if (programYearSlots.has(slot1Key) || programYearSlots.has(slot2Key)) {
-          console.log(`      ⚠️ Program-year conflict`);
+        // Check faculty day availability
+        if (!isFacultyAvailableOnDays(faculty, [day1, day2])) {
+          console.log(`      ❌ Faculty not available on days: ${day1}, ${day2}`);
           continue;
         }
         
-        // CRITICAL: Check for ANY overlap with program-year slots (not just exact match)
-        let hasProgramYearOverlap = false;
-        for (const existingSlot of programYearSlots) {
-          const [existingDay, existingStart, existingEnd] = existingSlot.split('|');
-          
-          // Check day1
-          if (existingDay === day1 && timeRangesOverlap(startTime, endTime, existingStart, existingEnd)) {
-            console.log(`      ⚠️ Program-year overlap on ${day1}: ${startTime}-${endTime} overlaps ${existingStart}-${existingEnd}`);
-            hasProgramYearOverlap = true;
-            break;
-          }
-          
-          // Check day2
-          if (existingDay === day2 && timeRangesOverlap(startTime, endTime, existingStart, existingEnd)) {
-            console.log(`      ⚠️ Program-year overlap on ${day2}: ${startTime}-${endTime} overlaps ${existingStart}-${existingEnd}`);
-            hasProgramYearOverlap = true;
-            break;
-          }
-        }
+        console.log(`      📅 Trying: ${day1} & ${day2}`);
         
-        if (hasProgramYearOverlap) {
-          continue;
-        }
-        
-        const recommendedFaculty = course.recommendedFaculty || instructors;
-        
-        for (const faculty of recommendedFaculty) {
+        // Try all time slots for this faculty and day pair
+        for (const slot of timeSlots) {
           if (scheduledPair) break;
           
-          const facultyId = faculty.id.toString();
-          const currentWorkload = facultyWorkload.get(facultyId) || 0;
-          const facultyMaxUnits = instructorMaxUnits.get(facultyId) || 18;
+          const startTime = slot.start;
+          const endTime = minutesToTime(timeToMinutes(startTime) + durationMinutes);
           
-          // console.log(`      👤 Checking faculty: ${faculty.firstname} ${faculty.lastname}`);
-          // console.log(`      📅 Available Days:`, faculty.availableDays);
-          // console.log(`      🕐 Preferred Time:`, faculty.preferredTimeSlots);
+          if (!isValidTimeSlot(startTime, endTime)) continue;
           
-          const alreadyTeaching = scheduledSubjects.some(s => 
-            s.subjectCode === course.subjectCode && s.facultyId === facultyId && s.semester === semester
-          );
-          
-          if (!alreadyTeaching && currentWorkload + (course.units || 0) > facultyMaxUnits) {
-            console.log(`      ⚠️ Workload exceeded: ${currentWorkload} + ${course.units} > ${facultyMaxUnits}`);
+          // Check faculty time availability for this specific time slot
+          if (!isFacultyAvailableAtTime(faculty, startTime, endTime)) {
             continue;
           }
           
-          // Check faculty availability (including day and time preferences)
+          // Check program-year conflicts
+          const programYearSlots = usedProgramYearSlots.get(programYearKey) || new Set();
+          const slot1Key = `${day1}|${startTime}|${endTime}`;
+          const slot2Key = `${day2}|${startTime}|${endTime}`;
+          
+          if (programYearSlots.has(slot1Key) || programYearSlots.has(slot2Key)) {
+            continue;
+          }
+          
+          // CRITICAL: Check for ANY overlap with program-year slots (not just exact match)
+          let hasProgramYearOverlap = false;
+          for (const existingSlot of programYearSlots) {
+            const [existingDay, existingStart, existingEnd] = existingSlot.split('|');
+            
+            // Check day1
+            if (existingDay === day1 && timeRangesOverlap(startTime, endTime, existingStart, existingEnd)) {
+              hasProgramYearOverlap = true;
+              break;
+            }
+            
+            // Check day2
+            if (existingDay === day2 && timeRangesOverlap(startTime, endTime, existingStart, existingEnd)) {
+              hasProgramYearOverlap = true;
+              break;
+            }
+          }
+          
+          if (hasProgramYearOverlap) {
+            continue;
+          }
+          
+          // Check for scheduling conflicts
           if (!isFacultyAvailable(facultyId, [day1, day2], startTime, endTime, semester, usedSlots, faculty)) {
             continue;
           }
@@ -957,6 +964,7 @@ function scheduleSubjectSessions(
             }
             
             // SUCCESS! Book both sessions
+            console.log(`      ✅ ASSIGNED: Rank #${faculty.rank} ${faculty.firstname} ${faculty.lastname} (${faculty.tagMatchPercentage}% match)`);
             console.log(`      ✅ PAIRED: ${day1} & ${day2} at ${startTime}-${endTime}, Room: ${room.name}`);
             
             sessions.push({
@@ -1027,7 +1035,7 @@ function scheduleSubjectSessions(
 
 export const generateSchedule = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { curriculumYear, semester } = req.query as Record<string, string | undefined>;
+    const { curriculumYear, semester, program } = req.query as Record<string, string | undefined>;
 
     if (!curriculumYear || !semester) {
       res.status(400).json({ 
@@ -1042,8 +1050,23 @@ export const generateSchedule = async (req: Request, res: Response): Promise<voi
     
     const instructors = await UserService.getInstructors();
     const rooms = await prisma.room.findMany();
+    
+    // Build where clause with optional program filter
+    const whereClause: any = { 
+      curriculumYear, 
+      period: semester 
+    };
+    
+    // Add program filter if specified
+    if (program && program !== 'all') {
+      whereClause.programCode = program;
+      console.log(`🎯 Filtering by program: ${program}`);
+    } else {
+      console.log(`🌐 Generating schedules for ALL programs`);
+    }
+    
     const curriculumCourses = await prisma.curriculumCourse.findMany({
-      where: { curriculumYear, period: semester }
+      where: whereClause
     });
 
     if (!curriculumCourses || curriculumCourses.length === 0) {
@@ -1527,7 +1550,51 @@ export const getAllSubjectSchedule = async (req: Request, res: Response): Promis
     
     const items = await prisma.subjectSchedule.findMany({
       where: academicYear ? { academicYear } : {},
-      orderBy: [{ day: 'asc' }, { startTime: 'asc' }]
+      orderBy: [{ day: 'asc' }, { startTime: 'asc' }],
+      select: {
+        id: true,
+        sourceId: true,
+        subjectId: true,
+        subject: true,
+        subjectCode: true,
+        subjectName: true,
+        subjectDescription: true,
+        faculty: true,
+        facultyId: true,
+        facultyName: true,
+        room: true,
+        roomId: true,
+        roomName: true,
+        time: true,
+        day: true,
+        days: true,
+        startTime: true,
+        endTime: true,
+        semester: true,
+        academicYear: true,
+        program: true,
+        yearLevel: true,
+        units: true,
+        lec: true,
+        lab: true,
+        students: true,
+        totalStudents: true,
+        type: true,
+        tags: true,
+        recommendedFaculty: true,
+        hasConflict: true,
+        status: true,
+        conflictType: true,
+        department: true,
+        curriculumId: true,
+        instructorId: true,
+        roomLegacyId: true,
+        isActive: true,
+        generationId: true,
+        createdAt: true,
+        updatedAt: true,
+        lastGenerated: true,
+      }
     });
     
     console.log(`✅ Found ${items.length} schedules`);
