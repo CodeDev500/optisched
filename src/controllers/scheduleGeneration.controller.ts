@@ -259,6 +259,15 @@ function timeRangesOverlap(start1: string, end1: string, start2: string, end2: s
 }
 
 /**
+ * Calculate duration in hours between start and end time
+ */
+function calculateDuration(startTime: string, endTime: string): number {
+  const startMinutes = timeToMinutes(startTime);
+  const endMinutes = timeToMinutes(endTime);
+  return (endMinutes - startMinutes) / 60;
+}
+
+/**
  * Check for schedule overlaps in the same curriculum year, semester, and program
  * Returns conflicting schedule if found, null otherwise
  */
@@ -1755,6 +1764,18 @@ export const createScheduleItem = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    // Validate lab duration for BSCS and ACT programs (must be exactly 1.5 hours)
+    if (type === 'Laboratory' && (program.includes('BSCS') || program.includes('ACT'))) {
+      const duration = calculateDuration(startTime, endTime);
+      if (duration !== 1.5) {
+        res.status(400).json({
+          success: false,
+          message: 'Laboratory sessions for BSCS and ACT must be exactly 1.5 hours (1 hour 30 minutes)'
+        });
+        return;
+      }
+    }
+
     // Check for schedule overlap with same curriculum year, semester, and program
     const scheduleOverlap = await checkScheduleOverlap(
       day,
@@ -1885,6 +1906,18 @@ export const updateScheduleItem = async (req: Request, res: Response): Promise<v
       program,
       parseInt(id)
     );
+
+    // Validate lab duration for BSCS and ACT programs (must be exactly 1.5 hours)
+    if (type === 'Laboratory' && (program.includes('BSCS') || program.includes('ACT'))) {
+      const duration = calculateDuration(startTime, endTime);
+      if (duration !== 1.5) {
+        res.status(400).json({
+          success: false,
+          message: 'Laboratory sessions for BSCS and ACT must be exactly 1.5 hours (1 hour 30 minutes)'
+        });
+        return;
+      }
+    }
 
     if (scheduleOverlap) {
       const formattedStart = formatTime12Hour(scheduleOverlap.startTime);

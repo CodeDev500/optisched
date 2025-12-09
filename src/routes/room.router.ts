@@ -4,7 +4,8 @@ import {
   getRoomById,
   createRoom,
   updateRoom,
-  deleteRoom
+  deleteRoom,
+  getRoomSchedules
 } from '../controllers/room.controller';
 import { verifyToken } from '../middlewares/verifyToken';
 
@@ -24,7 +25,8 @@ router.post('/', createRoom);
 
 // PUT /api/rooms/:id - Update room
 router.put('/:id', updateRoom);
-
+// GET /api/room-schedules/:roomName - Get room schedules by room name
+router.get('/schedules/:roomName', getRoomSchedules);
 // DELETE /api/rooms/:id - Delete room
 router.delete('/:id', deleteRoom);
 

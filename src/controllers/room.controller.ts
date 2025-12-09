@@ -235,3 +235,58 @@ export const deleteRoom = async (req: Request, res: Response): Promise<void> => 
     });
   }
 };
+
+
+// Get room schedules by room name, academic year, and semester
+export const getRoomSchedules = async (req: Request, res: Response): Promise<void> => {
+  try {
+    
+    const { roomName } = req.params;
+    const { academicYear, semester } = req.query;
+
+    if (!academicYear || !semester) {
+      res.status(400).json({
+        success: false,
+        message: 'Academic year and semester are required'
+      });
+      return;
+    }
+
+    // Fetch schedules from SubjectSchedule table
+    const schedules = await prisma.subjectSchedule.findMany({
+      where: {
+        roomName: roomName,
+        academicYear: academicYear as string,
+        semester: semester as string,
+      }
+    });
+
+    console.log(schedules)
+
+    // Transform the data to match the frontend interface
+    const transformedSchedules = schedules.map(schedule => ({
+      id: schedule.id,
+      day: schedule.day,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+      subjectCode: schedule.subjectCode,
+      subjectName: schedule.subjectName,
+      facultyName: schedule.facultyName,
+      program: schedule.program,
+      yearLevel: schedule.yearLevel,
+      semester: schedule.semester,
+      academicYear: schedule.academicYear
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: transformedSchedules
+    });
+  } catch (error) {
+    console.error('Error fetching room schedules:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch room schedules'
+    });
+  }
+};
